@@ -21,6 +21,7 @@ mod common;
 mod test {
     use graph_store::common::DefaultId;
     use graph_store::ldbc::LDBCVertexParser;
+    use ir_common::expr_parse::str_to_expr_pb;
     use ir_common::generated::algebra as pb;
     use ir_common::generated::common as common_pb;
     use pegasus_client::builder::JobBuilder;
@@ -79,6 +80,63 @@ mod test {
         job_builder.build().unwrap()
     }
 
+    fn init_apply_out_values_request(join_kind: i32) -> JobRequest {
+        let source_opr = pb::Scan {
+            scan_opt: 0,
+            alias: None,
+            params: Some(query_params(vec!["person".into()], vec![], None)),
+            idx_predicate: None,
+        };
+
+        let apply_opr = pb::Apply {
+            join_kind,
+            tags: vec![], // ignore this
+            subtask: 0,   // ignore this
+            alias: None,
+        };
+
+        let expand_opr = pb::EdgeExpand {
+            v_tag: None,
+            direction: 0,
+            params: Some(query_params(vec![], vec![], None)),
+            is_edge: false,
+            alias: None,
+        };
+
+        let project_opr = pb::Project {
+            mappings: vec![pb::project::ExprAlias {
+                expr: Some(str_to_expr_pb("@.age".to_string()).unwrap()),
+                alias: Some("b".into()),
+            }],
+            is_append: true,
+        };
+
+        let source_opr_bytes = pb::logical_plan::Operator::from(source_opr).encode_to_vec();
+        let shuffle_opr_bytes = common_pb::NameOrIdKey { key: None }.encode_to_vec();
+        let apply_opr_bytes = pb::logical_plan::Operator::from(apply_opr).encode_to_vec();
+        let expand_opr_bytes = pb::logical_plan::Operator::from(expand_opr).encode_to_vec();
+        let project_opr_bytes = pb::logical_plan::Operator::from(project_opr).encode_to_vec();
+        let sink_opr_bytes = pb::logical_plan::Operator::from(pb::Sink {
+            tags: vec![common_pb::NameOrIdKey { key: None }],
+            id_name_mappings: vec![],
+        })
+        .encode_to_vec();
+
+        let mut job_builder = JobBuilder::default();
+        job_builder.add_source(source_opr_bytes);
+        job_builder.apply_join(
+            move |plan| {
+                plan.repartition(shuffle_opr_bytes.clone());
+                plan.flat_map(expand_opr_bytes.clone());
+                plan.map(project_opr_bytes.clone());
+            },
+            apply_opr_bytes,
+        );
+        job_builder.sink(sink_opr_bytes);
+
+        job_builder.build().unwrap()
+    }
+
     fn apply_semi_join(worker_num: u32) {
         initialize();
         // join_kind: SemiJoin
@@ -106,16 +164,53 @@ mod test {
         assert_eq!(result_collection, expected_result_ids)
     }
 
-    // g.V().where(out())
+    // g.V().hasLabel("person").where(out())
     #[test]
     fn apply_semi_join_test() {
         apply_semi_join(1)
     }
 
-    // g.V().where(out())
+    // g.V().hasLabel("person").where(out())
     #[test]
     fn apply_semi_join_w2_test() {
         apply_semi_join(2)
+    }
+
+    fn apply_out_values_semi_join(worker_num: u32) {
+        initialize();
+        // join_kind: SemiJoin
+        let request = init_apply_out_values_request(4);
+        let mut results = submit_query(request, worker_num);
+        let mut result_collection = vec![];
+        let v1: DefaultId = LDBCVertexParser::to_global_id(1, 0);
+        let expected_result_ids = vec![v1];
+        while let Some(result) = results.next() {
+            match result {
+                Ok(res) => {
+                    let record = parse_result(res).unwrap();
+                    if let Some(vertex) = record.get(None).unwrap().as_graph_vertex() {
+                        result_collection.push(vertex.id() as DefaultId);
+                    }
+                }
+                Err(e) => {
+                    panic!("err result {:?}", e);
+                }
+            }
+        }
+        result_collection.sort();
+        assert_eq!(result_collection, expected_result_ids)
+    }
+
+    // g.V().hasLabel("person").where(out().values("age"))
+    #[test]
+    fn apply_out_values_semi_join_test() {
+        apply_out_values_semi_join(1)
+    }
+
+    // g.V().hasLabel("person").where(out().values("age"))
+    #[test]
+    fn apply_out_values_semi_join_w2_test() {
+        apply_out_values_semi_join(2)
     }
 
     fn apply_anti_join(worker_num: u32) {
@@ -143,16 +238,55 @@ mod test {
         assert_eq!(result_collection, expected_result_ids)
     }
 
-    // g.V().where(not(out()))
+    // g.V().hasLabel("person").where(not(out()))
     #[test]
     fn apply_anti_join_test() {
         apply_anti_join(1)
     }
 
-    // g.V().where(not(out()))
+    // g.V().hasLabel("person").where(not(out()))
     #[test]
     fn apply_anti_join_w2_test() {
         apply_anti_join(2)
+    }
+
+    fn apply_out_values_anti_join(worker_num: u32) {
+        initialize();
+        // join_kind: AntiJoin
+        let request = init_apply_out_values_request(5);
+        let mut results = submit_query(request, worker_num);
+        let mut result_collection = vec![];
+        let v2: DefaultId = LDBCVertexParser::to_global_id(2, 0);
+        let v4: DefaultId = LDBCVertexParser::to_global_id(4, 0);
+        let v6: DefaultId = LDBCVertexParser::to_global_id(6, 0);
+        let expected_result_ids = vec![v2, v4, v6];
+        while let Some(result) = results.next() {
+            match result {
+                Ok(res) => {
+                    let record = parse_result(res).unwrap();
+                    if let Some(vertex) = record.get(None).unwrap().as_graph_vertex() {
+                        result_collection.push(vertex.id() as DefaultId);
+                    }
+                }
+                Err(e) => {
+                    panic!("err result {:?}", e);
+                }
+            }
+        }
+        result_collection.sort();
+        assert_eq!(result_collection, expected_result_ids)
+    }
+
+    // g.V().hasLabel("person").not((out().values("age")))
+    #[test]
+    fn apply_out_values_anti_join_test() {
+        apply_out_values_anti_join(1)
+    }
+
+    // g.V().hasLabel("person").not((out().values("age")))
+    #[test]
+    fn apply_out_values_anti_join_w2_test() {
+        apply_out_values_anti_join(2)
     }
 
     // apply with the result of subtask is a single value (count())
@@ -257,13 +391,13 @@ mod test {
         assert_eq!(result_collection, expected_results)
     }
 
-    // g.V().apply(out().count(), inner_join)
+    // g.V().hasLabel("person").apply(out().count(), inner_join)
     #[test]
     fn apply_inner_join_test() {
         apply_inner_join(1)
     }
 
-    // g.V().apply(out().count(), inner_join)
+    // g.V().hasLabel("person").apply(out().count(), inner_join)
     #[test]
     fn apply_inner_join_w2_test() {
         apply_inner_join(2)
@@ -313,13 +447,13 @@ mod test {
         assert_eq!(result_collection, expected_result_ids)
     }
 
-    // g.V().apply(out().count(), left_outer_join)
+    // g.V().hasLabel("person").apply(out().count(), left_outer_join)
     #[test]
     fn apply_left_out_join_test() {
         apply_left_out_join(1)
     }
 
-    // g.V().apply(out().count(), left_outer_join)
+    // g.V().hasLabel("person").apply(out().count(), left_outer_join)
     #[test]
     fn apply_left_out_join_w2_test() {
         apply_left_out_join(2)
