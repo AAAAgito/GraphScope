@@ -330,6 +330,13 @@ impl IRJobCompiler {
                                 .apply(|sub_start| {
                                     let has_sub = self
                                         .install(sub_start, &sub_task.plan[..])?
+                                        .filter(|r| {
+                                            Ok(r.get(None).map(|entry| entry.is_any()).ok_or(
+                                                FnExecError::get_tag_error(
+                                                    "get entry of subtask result failed",
+                                                ),
+                                            )?)
+                                        })?
                                         .any()?;
                                     Ok(has_sub)
                                 })?
@@ -346,6 +353,13 @@ impl IRJobCompiler {
                                 .apply(|sub_start| {
                                     let has_sub = self
                                         .install(sub_start, &sub_task.plan[..])?
+                                        .filter(|r| {
+                                            Ok(r.get(None).map(|entry| entry.is_any()).ok_or(
+                                                FnExecError::get_tag_error(
+                                                    "get entry of subtask result failed",
+                                                ),
+                                            )?)
+                                        })?
                                         .any()?;
                                     Ok(has_sub)
                                 })?

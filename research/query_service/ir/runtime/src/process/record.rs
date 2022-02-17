@@ -27,6 +27,7 @@ use pegasus::api::function::DynIter;
 use pegasus::codec::{Decode, Encode, ReadExt, WriteExt};
 
 use crate::expr::eval::Context;
+use crate::expr::eval_pred::EvalPred;
 use crate::graph::element::{Edge, Element, GraphElement, GraphObject, GraphPath, Vertex, VertexOrEdge};
 use crate::graph::property::DynDetails;
 
@@ -76,6 +77,21 @@ impl RecordElement {
             _ => None,
         }
     }
+
+    // This is identical to PEvaluator::General(eval) for obj;
+    // However, it seems hard to be identical to PEvaluator::Predicates(pred).
+    // e.g., for len(), in PEvaluator::Predicates(pred), it returns xx.len()>0?,
+    // while it's hard to identify Object(u64) (which may be the result of eval()) as len() here; and thus, cannot eval as xx.len()>0;
+    fn is_any(&self) -> bool {
+        match self {
+            RecordElement::OffGraph(CommonObject::None) => false,
+            RecordElement::OffGraph(CommonObject::Prop(obj)) => obj
+                .as_borrow()
+                .eval_bool(None::<&Record>)
+                .unwrap(),
+            _ => true,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, PartialOrd)]
@@ -110,6 +126,13 @@ impl Entry {
         match self {
             Entry::Element(record_element) => record_element.as_mut_graph_path(),
             _ => None,
+        }
+    }
+
+    pub fn is_any(&self) -> bool {
+        match self {
+            Entry::Element(record_element) => record_element.is_any(),
+            _ => true,
         }
     }
 }
