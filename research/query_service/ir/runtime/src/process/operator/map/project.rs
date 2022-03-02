@@ -72,8 +72,12 @@ impl MapFunction<Record, Record> for ProjectOperator {
                     let entry = exec_projector(&input, projector)?;
                     // Notice that if multiple columns, alias cannot be None
                     if let Some(alias) = alias {
-                        let columns = input.get_columns_mut();
-                        columns.insert(alias.clone(), entry);
+                        // let columns = input.get_columns_mut();
+                        // let alias_id = input
+                        //     .get_or_insert_tag_id(alias.clone())
+                        //     .ok_or(FnExecError::get_tag_error("get tag id failed"))?;
+                        // columns.insert(alias_id as usize, entry);
+                        input.append_arc_entry_without_moving_head(entry.clone(), Some(alias.clone()));
                     }
                 }
                 // set head as None when the last column is appended
@@ -93,8 +97,12 @@ impl MapFunction<Record, Record> for ProjectOperator {
                     let entry = exec_projector(&input, &projector)?;
                     // Notice that if multiple columns, alias cannot be None
                     if let Some(alias) = alias {
-                        let columns = new_record.get_columns_mut();
-                        columns.insert(alias.clone(), entry);
+                        // let columns = new_record.get_columns_mut();
+                        // let alias_id = input
+                        //     .get_or_insert_tag_id(alias.clone())
+                        //     .ok_or(FnExecError::get_tag_error("get tag id failed"))?;
+                        // columns.insert(alias_id as usize, entry);
+                        input.append_arc_entry_without_moving_head(entry.clone(), Some(alias.clone()));
                     }
                 }
             }
