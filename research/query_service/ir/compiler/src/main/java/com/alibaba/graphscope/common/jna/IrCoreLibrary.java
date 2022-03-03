@@ -28,7 +28,7 @@ public interface IrCoreLibrary extends Library {
             Library.OPTION_TYPE_MAPPER, IrTypeMapper.INSTANCE,
             Library.OPTION_FUNCTION_MAPPER, IrFunctionMapper.INSTANCE));
 
-    Pointer initLogicalPlan(boolean isPreprocess);
+    Pointer initLogicalPlan();
 
     void write_plan_to_json(Pointer plan, String jsonFile);
 
@@ -143,6 +143,20 @@ public interface IrCoreLibrary extends Library {
     ResultCode addUnionParent(Pointer union, int subRootId);
 
     ResultCode appendUnionOperator(Pointer plan, Pointer union, IntByReference oprIdx);
+
+    Pointer initPatternOperator();
+
+    Pointer initPatternSentence(FfiJoinKind joinKind);
+
+    ResultCode setSentenceStart(Pointer sentence, FfiNameOrId.ByValue tag);
+
+    ResultCode setSentenceEnd(Pointer sentence, FfiNameOrId.ByValue tag);
+
+    ResultCode addSentenceBinder(Pointer sentence, Pointer binder, FfiBinderOpt opt);
+
+    ResultCode addPatternSentence(Pointer pattern, Pointer sentence);
+
+    ResultCode appendPatternOperator(Pointer plan, Pointer pattern, int parent, IntByReference oprIdx);
 
     FfiNameOrId.ByValue noneNameOrId();
 

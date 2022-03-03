@@ -471,6 +471,9 @@ public class TraversalMethodVisitor extends TraversalRootVisitor<GraphTraversal>
                             GremlinAntlrToJava.getTraversalSupplier().get());
                     Traversal nestedTraversal = nestedVisitor.visitTraversalMethod_values(byCtx.traversalMethod_values());
                     byModulating.modulateBy(nestedTraversal.asAdmin());
+                } else if (byChildCount == 4 && byCtx.nestedTraversal() != null) {
+                    Traversal byTraversal = visitNestedTraversal(byCtx.nestedTraversal());
+                    byModulating.modulateBy(byTraversal.asAdmin());
                 }
             }
         }
@@ -506,6 +509,17 @@ public class TraversalMethodVisitor extends TraversalRootVisitor<GraphTraversal>
             return graphTraversal.range(((Number) lower).longValue(), ((Number) upper).longValue());
         } else {
             throw new UnsupportedEvalException(ctx.getClass(), "supported pattern is [range(1, 2)]");
+        }
+    }
+
+    @Override
+    public Traversal visitTraversalMethod_match(GremlinGSParser.TraversalMethod_matchContext ctx) {
+        if (ctx.nestedTraversalExpr() != null) {
+            Traversal[] matchTraversals = (new NestedTraversalSourceListVisitor((GremlinGSBaseVisitor) this))
+                    .visitNestedTraversalExpr(ctx.nestedTraversalExpr());
+            return graphTraversal.match(matchTraversals);
+        } else {
+            throw new UnsupportedEvalException(ctx.getClass(), "supported pattern is [match(as('a').out()..., ...)]");
         }
     }
 }
