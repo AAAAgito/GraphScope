@@ -19,7 +19,6 @@ use std::hash::Hash;
 use std::sync::Arc;
 
 use dyn_type::{BorrowObject, Object};
-use indexmap::map::IndexMap;
 use ir_common::error::ParsePbError;
 use ir_common::generated::results as result_pb;
 use ir_common::{KeyId, NameOrId};
@@ -30,6 +29,8 @@ use vec_map::VecMap;
 use crate::expr::eval::Context;
 use crate::graph::element::{Edge, Element, GraphElement, GraphObject, GraphPath, Vertex, VertexOrEdge};
 use crate::graph::property::DynDetails;
+
+const INVALID_TAG_ID: KeyId = KeyId::max_value();
 
 #[derive(Debug, Clone, Hash, PartialEq, PartialOrd)]
 pub enum CommonObject {
@@ -118,26 +119,22 @@ impl Entry {
 #[derive(Debug, Clone, Default)]
 pub struct Record {
     curr: Option<Arc<Entry>>,
-    tags_mapping: IndexMap<String, KeyId>,
+    // tags_mapping: IndexMap<String, KeyId>,
     columns: VecMap<Arc<Entry>>,
 }
 
 impl Record {
     pub fn new<E: Into<Entry>>(entry: E, tag: Option<NameOrId>) -> Self {
         let entry = Arc::new(entry.into());
-        let mut tags = IndexMap::new();
         let mut columns = VecMap::new();
         if let Some(tag) = tag {
             let tag_id = match tag {
-                NameOrId::Str(name) => {
-                    tags.insert(name, 0);
-                    0
-                }
+                NameOrId::Str(_name) => INVALID_TAG_ID,
                 NameOrId::Id(id) => id,
             };
             columns.insert(tag_id as usize, entry.clone());
         }
-        Record { curr: Some(entry), tags_mapping: tags, columns }
+        Record { curr: Some(entry), columns }
     }
 
     // TODO: consider to maintain the record without any alias, which also needed to be stored;
@@ -203,22 +200,14 @@ impl Record {
 
     pub fn get_or_insert_tag_id(&mut self, tag: NameOrId) -> KeyId {
         match tag {
-            NameOrId::Str(name) => {
-                if let Some(tag_id) = self.tags_mapping.get(&name) {
-                    *tag_id
-                } else {
-                    let tag_id = self.tags_mapping.len() as KeyId;
-                    self.tags_mapping.insert(name, tag_id);
-                    tag_id
-                }
-            }
+            NameOrId::Str(_name) => INVALID_TAG_ID,
             NameOrId::Id(id) => id,
         }
     }
 
     pub fn get_tag_id(&self, tag: NameOrId) -> Option<KeyId> {
         match tag {
-            NameOrId::Str(name) => self.tags_mapping.get(&name).cloned(),
+            NameOrId::Str(_name) => None,
             NameOrId::Id(id) => Some(id),
         }
     }
@@ -534,11 +523,6 @@ impl Encode for Record {
                 entry.write_to(writer)?;
             }
         }
-        writer.write_u64(self.tags_mapping.len() as u64)?;
-        for (k, v) in self.tags_mapping.iter() {
-            k.write_to(writer)?;
-            v.write_to(writer)?;
-        }
         writer.write_u64(self.columns.len() as u64)?;
         for (k, v) in self.columns.iter() {
             (k as KeyId).write_to(writer)?;
@@ -552,13 +536,6 @@ impl Decode for Record {
     fn read_from<R: ReadExt>(reader: &mut R) -> std::io::Result<Self> {
         let opt = reader.read_u8()?;
         let curr = if opt == 0 { None } else { Some(Arc::new(<Entry>::read_from(reader)?)) };
-        let tag_size = <u64>::read_from(reader)? as usize;
-        let mut tags = IndexMap::with_capacity(tag_size);
-        for _i in 0..tag_size {
-            let k = <String>::read_from(reader)?;
-            let v = <KeyId>::read_from(reader)?;
-            tags.insert(k, v);
-        }
         let size = <u64>::read_from(reader)? as usize;
         let mut columns = VecMap::with_capacity(size);
         for _i in 0..size {
@@ -566,7 +543,7 @@ impl Decode for Record {
             let v = <Entry>::read_from(reader)?;
             columns.insert(k, Arc::new(v));
         }
-        Ok(Record { curr, tags_mapping: tags, columns })
+        Ok(Record { curr, columns })
     }
 }
 
