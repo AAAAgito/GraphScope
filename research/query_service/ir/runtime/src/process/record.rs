@@ -154,14 +154,6 @@ impl Record {
         }
     }
 
-    // for test only
-    pub fn append_arc_entry_without_moving_head(&mut self, entry: Arc<Entry>, alias: Option<NameOrId>) {
-        if let Some(alias) = alias {
-            let alias_id = self.get_or_insert_tag_id(alias);
-            self.columns.insert(alias_id as usize, entry);
-        }
-    }
-
     pub fn get_curr_mut(&mut self) -> &mut Option<Arc<Entry>> {
         self.curr.borrow_mut()
     }

@@ -71,14 +71,14 @@ impl MapFunction<Record, Record> for ProjectOperator {
                 for (projector, alias) in self.projected_columns.iter() {
                     let entry = exec_projector(&input, projector)?;
                     // Notice that if multiple columns, alias cannot be None
-                    input.append_arc_entry_without_moving_head(entry.clone(), alias.clone());
-                    // if let Some(alias) = alias {
-                    // let columns = input.get_columns_mut();
-                    // let alias_id = input
-                    //     .get_or_insert_tag_id(alias.clone())
-                    //     .ok_or(FnExecError::get_tag_error("get tag id failed"))?;
-                    // columns.insert(alias_id as usize, entry);
-                    // }
+                    if let Some(alias) = alias {
+                        let alias_id = input.get_or_insert_tag_id(alias.clone());
+                        {
+                            input
+                                .get_columns_mut()
+                                .insert(alias_id as usize, entry);
+                        }
+                    }
                 }
                 // set head as None when the last column is appended
                 let curr = input.get_curr_mut();
@@ -96,15 +96,14 @@ impl MapFunction<Record, Record> for ProjectOperator {
                 for (projector, alias) in self.projected_columns.iter() {
                     let entry = exec_projector(&input, &projector)?;
                     // Notice that if multiple columns, alias cannot be None
-                    new_record.append_arc_entry_without_moving_head(entry.clone(), alias.clone());
-                    // if let Some(alias) = alias {
-                    // let columns = new_record.get_columns_mut();
-                    // let alias_id = input
-                    //     .get_or_insert_tag_id(alias.clone())
-                    //     .ok_or(FnExecError::get_tag_error("get tag id failed"))?;
-                    // columns.insert(alias_id as usize, entry);
-
-                    // }
+                    if let Some(alias) = alias {
+                        let alias_id = new_record.get_or_insert_tag_id(alias.clone());
+                        {
+                            new_record
+                                .get_columns_mut()
+                                .insert(alias_id as usize, entry);
+                        }
+                    }
                 }
             }
             Ok(new_record)

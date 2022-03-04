@@ -93,12 +93,12 @@ pub mod test {
                 let entry = column.entry.unwrap();
                 // append entry without moving head
                 if let Some(tag) = tag {
-                    // let columns = record.get_columns_mut();
-                    // columns.insert(tag.clone(), Arc::new(Entry::try_from(entry).unwrap()));
-                    record.append_arc_entry_without_moving_head(
-                        Arc::new(Entry::try_from(entry).unwrap()),
-                        Some(tag),
-                    )
+                    let alias_id = record.get_or_insert_tag_id(tag.clone());
+                    {
+                        record
+                            .get_columns_mut()
+                            .insert(alias_id as usize, Arc::new(Entry::try_from(entry).unwrap()));
+                    }
                 } else {
                     record.append(Entry::try_from(entry).unwrap(), None);
                 }
