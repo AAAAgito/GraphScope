@@ -28,7 +28,6 @@ import logging
 import numbers
 import os
 import pickle
-import re
 import shutil
 import socket
 import subprocess
@@ -50,6 +49,7 @@ from graphscope.framework import utils
 from graphscope.framework.errors import CompilationError
 from graphscope.framework.graph_schema import GraphSchema
 from graphscope.framework.utils import PipeWatcher
+from graphscope.framework.utils import get_platform_info
 from graphscope.framework.utils import get_tempdir
 from graphscope.proto import attr_value_pb2
 from graphscope.proto import data_types_pb2
@@ -162,7 +162,7 @@ def get_app_sha256(attr):
         java_jar_path,
         java_app_class,
     ) = _codegen_app_info(attr, DEFAULT_GS_CONFIG_FILE)
-    graph_header, graph_type = _codegen_graph_info(attr)
+    graph_header, graph_type, _ = _codegen_graph_info(attr)
     logger.info("Codegened graph type: %s, Graph header: %s", graph_type, graph_header)
 
     app_sha256 = ""
@@ -188,7 +188,7 @@ def get_app_sha256(attr):
 
 
 def get_graph_sha256(attr):
-    _, graph_class = _codegen_graph_info(attr)
+    _, graph_class, _ = _codegen_graph_info(attr)
     return hashlib.sha256(graph_class.encode("utf-8")).hexdigest()
 
 
@@ -236,7 +236,7 @@ def compile_app(workspace: str, library_name, attr, engine_config: dict):
         str(java_app_class),
     )
 
-    graph_header, graph_type = _codegen_graph_info(attr)
+    graph_header, graph_type, graph_oid_type = _codegen_graph_info(attr)
     logger.info("Codegened graph type: %s, Graph header: %s", graph_type, graph_header)
 
     os.chdir(app_dir)
@@ -244,11 +244,13 @@ def compile_app(workspace: str, library_name, attr, engine_config: dict):
     module_name = ""
     # Output directory for java codegen
     java_codegen_out_dir = ""
+    # set OPAL_PREFIX in CMAKE_PREFIX_PATH
+    OPAL_PREFIX = os.environ.get("OPAL_PREFIX", "")
     cmake_commands = [
-        "cmake",
+        shutil.which("cmake"),
         ".",
         f"-DNETWORKX={engine_config['networkx']}",
-        f"-DCMAKE_PREFIX_PATH={GRAPHSCOPE_HOME}",
+        f"-DCMAKE_PREFIX_PATH='{GRAPHSCOPE_HOME};{OPAL_PREFIX}'",
     ]
     if app_type == "java_pie":
         if not os.path.isfile(GRAPE_PROCESSOR_JAR):
@@ -312,6 +314,7 @@ def compile_app(workspace: str, library_name, attr, engine_config: dict):
         content = Template(content).safe_substitute(
             _analytical_engine_home=ANALYTICAL_ENGINE_HOME,
             _frame_name=library_name,
+            _oid_type=graph_oid_type,
             _vd_type=vd_type,
             _md_type=md_type,
             _graph_type=graph_type,
@@ -335,7 +338,7 @@ def compile_app(workspace: str, library_name, attr, engine_config: dict):
         universal_newlines=True,
         bufsize=1,
     )
-    cmake_stderr_watcher = PipeWatcher(cmake_process.stderr, sys.stdout)
+    cmake_stderr_watcher = PipeWatcher(cmake_process.stderr, sys.stderr)
     setattr(cmake_process, "stderr_watcher", cmake_stderr_watcher)
     cmake_process.wait()
 
@@ -349,12 +352,14 @@ def compile_app(workspace: str, library_name, attr, engine_config: dict):
         universal_newlines=True,
         bufsize=1,
     )
-    make_stderr_watcher = PipeWatcher(make_process.stderr, sys.stdout)
+    make_stderr_watcher = PipeWatcher(make_process.stderr, sys.stderr)
     setattr(make_process, "stderr_watcher", make_stderr_watcher)
     make_process.wait()
     lib_path = get_lib_path(app_dir, library_name)
     if not os.path.isfile(lib_path):
-        raise CompilationError(f"Failed to compile app {app_class}")
+        raise CompilationError(
+            f"Failed to compile app {app_class} on platform {get_platform_info()}"
+        )
     return lib_path, java_jar_path, java_codegen_out_dir, app_type
 
 
@@ -377,7 +382,7 @@ def compile_graph_frame(workspace: str, library_name, attr: dict, engine_config:
         None: for consistency with compile_app.
     """
 
-    _, graph_class = _codegen_graph_info(attr)
+    _, graph_class, _ = _codegen_graph_info(attr)
 
     logger.info("Codegened graph frame type: %s", graph_class)
 
@@ -388,11 +393,13 @@ def compile_graph_frame(workspace: str, library_name, attr: dict, engine_config:
 
     graph_type = attr[types_pb2.GRAPH_TYPE].graph_type
 
+    # set OPAL_PREFIX in CMAKE_PREFIX_PATH
+    OPAL_PREFIX = os.environ.get("OPAL_PREFIX", "")
     cmake_commands = [
-        "cmake",
+        shutil.which("cmake"),
         ".",
         f"-DNETWORKX={engine_config['networkx']}",
-        f"-DCMAKE_PREFIX_PATH={GRAPHSCOPE_HOME}",
+        f"-DCMAKE_PREFIX_PATH='{GRAPHSCOPE_HOME};{OPAL_PREFIX}'",
     ]
     if graph_type == graph_def_pb2.ARROW_PROPERTY:
         cmake_commands += ["-DPROPERTY_GRAPH_FRAME=True"]
@@ -429,7 +436,7 @@ def compile_graph_frame(workspace: str, library_name, attr: dict, engine_config:
         universal_newlines=True,
         bufsize=1,
     )
-    cmake_stderr_watcher = PipeWatcher(cmake_process.stderr, sys.stdout)
+    cmake_stderr_watcher = PipeWatcher(cmake_process.stderr, sys.stderr)
     setattr(cmake_process, "stderr_watcher", cmake_stderr_watcher)
     cmake_process.wait()
 
@@ -443,12 +450,14 @@ def compile_graph_frame(workspace: str, library_name, attr: dict, engine_config:
         universal_newlines=True,
         bufsize=1,
     )
-    make_stderr_watcher = PipeWatcher(make_process.stderr, sys.stdout)
+    make_stderr_watcher = PipeWatcher(make_process.stderr, sys.stderr)
     setattr(make_process, "stderr_watcher", make_stderr_watcher)
     make_process.wait()
     lib_path = get_lib_path(library_dir, library_name)
     if not os.path.isfile(lib_path):
-        raise CompilationError(f"Failed to compile graph {graph_class}")
+        raise CompilationError(
+            f"Failed to compile graph {graph_class} on platform {get_platform_info()}"
+        )
     return lib_path, None, None, None
 
 
@@ -518,8 +527,7 @@ def _pre_process_for_create_graph_op(op, op_result_pool, key_to_op, **kwargs):
         key_of_parent_op = op.parents[0]
         parent_op = key_to_op[key_of_parent_op]
         if parent_op.op == types_pb2.DATA_SOURCE:
-            for key, value in parent_op.attr.items():
-                op.attr[key].CopyFrom(value)
+            op.large_attr.CopyFrom(parent_op.large_attr)
 
 
 def _pre_process_for_add_labels_op(op, op_result_pool, key_to_op, **kwargs):
@@ -527,8 +535,7 @@ def _pre_process_for_add_labels_op(op, op_result_pool, key_to_op, **kwargs):
     for key_of_parent_op in op.parents:
         parent_op = key_to_op[key_of_parent_op]
         if parent_op.op == types_pb2.DATA_SOURCE:
-            for key, value in parent_op.attr.items():
-                op.attr[key].CopyFrom(value)
+            op.large_attr.CopyFrom(parent_op.large_attr)
         else:
             result = op_result_pool[key_of_parent_op]
             op.attr[types_pb2.GRAPH_NAME].CopyFrom(
@@ -822,67 +829,145 @@ def _pre_process_for_output_graph_op(op, op_result_pool, key_to_op, **kwargs):
     )
 
 
-def _pre_process_for_project_to_simple_op(op, op_result_pool, key_to_op, **kwargs):
+def _pre_process_for_project_to_simple_op(  # noqa: C901
+    op, op_result_pool, key_to_op, **kwargs
+):
     # for nx graph
     if op.attr[types_pb2.GRAPH_TYPE].graph_type in (
         graph_def_pb2.DYNAMIC_PROJECTED,
         graph_def_pb2.ARROW_FLATTENED,
     ):
         return
-    assert len(op.parents) == 1
+
+    def _check_v_prop_exists_in_all_v_labels(schema, prop):
+        exists = True
+        for v_label in schema.vertex_labels:
+            exists = exists and schema.vertex_property_exists(v_label, prop)
+        return exists
+
+    def _check_e_prop_exists_in_all_e_labels(schema, prop):
+        exists = True
+        for e_label in schema.edge_labels:
+            exists = exists and schema.edge_property_exists(e_label, prop)
+        return exists
+
     # get parent graph schema
+    assert len(op.parents) == 1
     key_of_parent_op = op.parents[0]
     r = op_result_pool[key_of_parent_op]
     schema = GraphSchema()
     schema.from_graph_def(r.graph_def)
     graph_name = r.graph_def.key
-    check_argument(
-        schema.vertex_label_num == 1,
-        "Cannot project to simple, vertex label number is not one.",
-    )
-    check_argument(
-        schema.edge_label_num == 1,
-        "Cannot project to simple, edge label number is not one.",
-    )
-    v_label = schema.vertex_labels[0]
-    e_label = schema.edge_labels[0]
-    relation = (v_label, v_label)
-    check_argument(
-        relation in schema.get_relationships(e_label),
-        f"Cannot project to simple, Graph doesn't contain such relationship: {v_label} -> {e_label} <- {v_label}.",
-    )
-    v_props = schema.get_vertex_properties(v_label)
-    e_props = schema.get_edge_properties(e_label)
-    check_argument(len(v_props) <= 1)
-    check_argument(len(e_props) <= 1)
-    v_label_id = schema.get_vertex_label_id(v_label)
-    e_label_id = schema.get_edge_label_id(e_label)
-    v_prop_id, vdata_type = (v_props[0].id, v_props[0].type) if v_props else (-1, None)
-    e_prop_id, edata_type = (e_props[0].id, e_props[0].type) if e_props else (-1, None)
-    oid_type = schema.oid_type
-    vid_type = schema.vid_type
+
+    if schema.vertex_label_num == 0:
+        raise RuntimeError(
+            "Failed to project to simple graph as no vertex exists in this graph."
+        )
+    if schema.edge_label_num == 0:
+        raise RuntimeError(
+            "Failed to project to simple graph as no edge exists in this graph."
+        )
+
+    need_flatten_graph = False
+    if schema.vertex_label_num > 1 or schema.edge_label_num > 1:
+        need_flatten_graph = True
+
+    # check and get vertex property
+    v_prop = op.attr[types_pb2.V_PROP_KEY].s.decode("utf-8")
+    if v_prop == "None":
+        v_prop_id = -1
+        v_prop_type = graph_def_pb2.NULLVALUE
+        if not need_flatten_graph:
+            # for projected graph
+            # if there is only one property on the label, uses this property
+            v_label = schema.vertex_labels[0]
+            if schema.vertex_properties_num(v_label) == 1:
+                v_prop = schema.get_vertex_properties(v_label)[0]
+                v_prop_id = v_prop.id
+                v_prop_type = v_prop.type
+    else:
+        # v_prop should exists in all labels
+        if not _check_v_prop_exists_in_all_v_labels(schema, v_prop):
+            raise RuntimeError(
+                "Property {0} doesn't exists in all vertex labels".format(v_prop)
+            )
+        # get vertex property id
+        v_prop_id = schema.get_vertex_property_id(schema.vertex_labels[0], v_prop)
+        # get vertex property type
+        v_prop_type = graph_def_pb2.NULLVALUE
+        v_props = schema.get_vertex_properties(schema.vertex_labels[0])
+        for v_prop in v_props:
+            if v_prop.id == v_prop_id:
+                v_prop_type = v_prop.type
+                break
+
+    # check and get edge property
+    e_prop = op.attr[types_pb2.E_PROP_KEY].s.decode("utf-8")
+    if e_prop == "None":
+        e_prop_id = -1
+        e_prop_type = graph_def_pb2.NULLVALUE
+        if not need_flatten_graph:
+            # for projected graph
+            # if there is only one property on the label, uses this property
+            e_label = schema.edge_labels[0]
+            if schema.edge_properties_num(e_label) == 1:
+                e_prop = schema.get_edge_properties(e_label)[0]
+                e_prop_id = e_prop.id
+                e_prop_type = e_prop.type
+    else:
+        # e_prop should exists in all labels
+        if not _check_e_prop_exists_in_all_e_labels(schema, e_prop):
+            raise RuntimeError(
+                "Property {0} doesn't exists in all edge labels".format(e_prop)
+            )
+        # get edge property id
+        e_prop_id = schema.get_edge_property_id(schema.edge_labels[0], e_prop)
+        # get edge property type
+        e_props = schema.get_edge_properties(schema.edge_labels[0])
+        e_prop_type = graph_def_pb2.NULLVALUE
+        for e_prop in e_props:
+            if e_prop.id == e_prop_id:
+                e_prop_type = e_prop.type
+                break
+
     op.attr[types_pb2.GRAPH_NAME].CopyFrom(
         attr_value_pb2.AttrValue(s=graph_name.encode("utf-8"))
     )
-    op.attr[types_pb2.GRAPH_TYPE].CopyFrom(
-        utils.graph_type_to_attr(graph_def_pb2.ARROW_PROJECTED)
-    )
-    op.attr[types_pb2.V_LABEL_ID].CopyFrom(utils.i_to_attr(v_label_id))
-    op.attr[types_pb2.V_PROP_ID].CopyFrom(utils.i_to_attr(v_prop_id))
-    op.attr[types_pb2.E_LABEL_ID].CopyFrom(utils.i_to_attr(e_label_id))
-    op.attr[types_pb2.E_PROP_ID].CopyFrom(utils.i_to_attr(e_prop_id))
     op.attr[types_pb2.OID_TYPE].CopyFrom(
-        utils.s_to_attr(utils.data_type_to_cpp(oid_type))
+        utils.s_to_attr(utils.data_type_to_cpp(schema.oid_type))
     )
     op.attr[types_pb2.VID_TYPE].CopyFrom(
-        utils.s_to_attr(utils.data_type_to_cpp(vid_type))
+        utils.s_to_attr(utils.data_type_to_cpp(schema.vid_type))
     )
     op.attr[types_pb2.V_DATA_TYPE].CopyFrom(
-        utils.s_to_attr(utils.data_type_to_cpp(vdata_type))
+        utils.s_to_attr(utils.data_type_to_cpp(v_prop_type))
     )
     op.attr[types_pb2.E_DATA_TYPE].CopyFrom(
-        utils.s_to_attr(utils.data_type_to_cpp(edata_type))
+        utils.s_to_attr(utils.data_type_to_cpp(e_prop_type))
     )
+    if need_flatten_graph:
+        op.attr[types_pb2.GRAPH_TYPE].CopyFrom(
+            utils.graph_type_to_attr(graph_def_pb2.ARROW_FLATTENED)
+        )
+        op.attr[types_pb2.V_PROP_KEY].CopyFrom(utils.s_to_attr(str(v_prop_id)))
+        op.attr[types_pb2.E_PROP_KEY].CopyFrom(utils.s_to_attr(str(e_prop_id)))
+    else:
+        v_label = schema.vertex_labels[0]
+        e_label = schema.edge_labels[0]
+        relation = (v_label, v_label)
+        check_argument(
+            relation in schema.get_relationships(e_label),
+            f"Cannot project to simple, Graph doesn't contain such relationship: {v_label} -> {e_label} <- {v_label}.",
+        )
+        v_label_id = schema.get_vertex_label_id(v_label)
+        e_label_id = schema.get_edge_label_id(e_label)
+        op.attr[types_pb2.GRAPH_TYPE].CopyFrom(
+            utils.graph_type_to_attr(graph_def_pb2.ARROW_PROJECTED)
+        )
+        op.attr[types_pb2.V_LABEL_ID].CopyFrom(utils.i_to_attr(v_label_id))
+        op.attr[types_pb2.V_PROP_ID].CopyFrom(utils.i_to_attr(v_prop_id))
+        op.attr[types_pb2.E_LABEL_ID].CopyFrom(utils.i_to_attr(e_label_id))
+        op.attr[types_pb2.E_PROP_ID].CopyFrom(utils.i_to_attr(e_prop_id))
 
 
 def _pre_process_for_project_op(op, op_result_pool, key_to_op, **kwargs):
@@ -949,45 +1034,8 @@ def _pre_process_for_project_op(op, op_result_pool, key_to_op, **kwargs):
     del op.attr[types_pb2.EDGE_COLLECTIONS]
 
 
-def _tranform_numpy_selector(context_type, schema, selector):
-    if context_type == "tensor":
-        selector = None
-    if context_type == "vertex_data":
-        selector = transform_vertex_data_selector(selector)
-    if context_type == "labeled_vertex_data":
-        selector = transform_labeled_vertex_data_selector(schema, selector)
-    if context_type == "vertex_property":
-        selector = transform_vertex_property_data_selector(selector)
-    if context_type == "labeled_vertex_property":
-        selector = transform_labeled_vertex_property_data_selector(schema, selector)
-    return selector
-
-
-def _tranform_dataframe_selector(context_type, schema, selector):
-    selector = json.loads(selector)
-    if context_type == "tensor":
-        selector = {key: None for key, value in selector.items()}
-    if context_type == "vertex_data":
-        selector = {
-            key: transform_vertex_data_selector(value)
-            for key, value in selector.items()
-        }
-    if context_type == "labeled_vertex_data":
-        selector = {
-            key: transform_labeled_vertex_data_selector(schema, value)
-            for key, value in selector.items()
-        }
-    if context_type == "vertex_property":
-        selector = {
-            key: transform_vertex_property_data_selector(value)
-            for key, value in selector.items()
-        }
-    if context_type == "labeled_vertex_property":
-        selector = {
-            key: transform_labeled_vertex_property_data_selector(schema, value)
-            for key, value in selector.items()
-        }
-    return json.dumps(selector)
+# Below are selector transformation part, which will transform label / property
+# names to corresponding id.
 
 
 def _transform_vertex_data_v(selector):
@@ -1040,7 +1088,7 @@ def _transform_labeled_vertex_property_data_r(schema, label, prop):
     return f"label{label_id}.{prop}"
 
 
-def transform_vertex_data_selector(selector):
+def transform_vertex_data_selector(schema, selector):
     """Optional values:
     vertex selector: 'v.id', 'v.data'
     edge selector: 'e.src', 'e.dst', 'e.data'
@@ -1062,7 +1110,7 @@ def transform_vertex_data_selector(selector):
     return selector
 
 
-def transform_vertex_property_data_selector(selector):
+def transform_vertex_property_data_selector(schema, selector):
     """Optional values:
     vertex selector: 'v.id', 'v.data'
     edge selector: 'e.src', 'e.dst', 'e.data'
@@ -1127,6 +1175,26 @@ def transform_labeled_vertex_property_data_selector(schema, selector):
     elif ret_type == "r":
         ret = _transform_labeled_vertex_property_data_r(schema, *segments)
     return f"{ret_type}:{ret}"
+
+
+_transform_selector_func_map = {
+    "tensor": lambda _, _2: None,
+    "vertex_data": transform_vertex_data_selector,
+    "labeled_vertex_data": transform_labeled_vertex_data_selector,
+    "vertex_property": transform_vertex_property_data_selector,
+    "labeled_vertex_property": transform_labeled_vertex_property_data_selector,
+}
+
+
+def _tranform_numpy_selector(context_type, schema, selector):
+    return _transform_selector_func_map[context_type](schema, selector)
+
+
+def _tranform_dataframe_selector(context_type, schema, selector):
+    selector = json.loads(selector)
+    transform_func = _transform_selector_func_map[context_type]
+    selector = {key: transform_func(schema, value) for key, value in selector.items()}
+    return json.dumps(selector)
 
 
 def _extract_gar(app_dir: str, attr):
@@ -1242,6 +1310,7 @@ def _codegen_graph_info(attr):
     graph_class, graph_header = GRAPH_HEADER_MAP[graph_type]
     # graph_type is a literal of graph template in c++ side
     if graph_class == "vineyard::ArrowFragment":
+        graph_oid_type = attr[types_pb2.OID_TYPE].s.decode("utf-8")
         # in a format of full qualified name, e.g. vineyard::ArrowFragment<double, double>
         graph_fqn = "{}<{},{}>".format(
             graph_class,
@@ -1254,6 +1323,7 @@ def _codegen_graph_info(attr):
     ):
         # in a format of gs::ArrowProjectedFragment<int64_t, uint32_t, double, double>
         # or grape::ImmutableEdgecutFragment<int64_t, uint32_t, double, double>
+        graph_oid_type = attr[types_pb2.OID_TYPE].s.decode("utf-8")
         graph_fqn = "{}<{},{},{},{}>".format(
             graph_class,
             attr[types_pb2.OID_TYPE].s.decode("utf-8"),
@@ -1262,6 +1332,7 @@ def _codegen_graph_info(attr):
             attr[types_pb2.E_DATA_TYPE].s.decode("utf-8"),
         )
     elif graph_class == "gs::ArrowFlattenedFragment":
+        graph_oid_type = attr[types_pb2.OID_TYPE].s.decode("utf-8")
         graph_fqn = "{}<{},{},{},{}>".format(
             graph_class,
             attr[types_pb2.OID_TYPE].s.decode("utf-8"),
@@ -1271,12 +1342,13 @@ def _codegen_graph_info(attr):
         )
     else:
         # gs::DynamicProjectedFragment<double, double>
+        graph_oid_type = None
         graph_fqn = "{}<{},{}>".format(
             graph_class,
             attr[types_pb2.V_DATA_TYPE].s.decode("utf-8"),
             attr[types_pb2.E_DATA_TYPE].s.decode("utf-8"),
         )
-    return graph_header, graph_fqn
+    return graph_header, graph_fqn, graph_oid_type
 
 
 def create_single_op_dag(op_type, config=None):
@@ -1662,24 +1734,6 @@ def check_argument(condition, message=None):
         raise ValueError(f"Check failed: {message}")
 
 
-def find_java():
-    java_exec = ""
-    if "JAVA_HOME" in os.environ:
-        java_exec = os.path.expandvars("$JAVA_HOME/bin/java")
-    if not java_exec:
-        java_exec = shutil.which("java")
-    if not java_exec:
-        raise RuntimeError("java command not found.")
-    return java_exec
-
-
-def get_java_version():
-    java_exec = find_java()
-    pattern = r'"(\d+\.\d+\.\d+).*"'
-    version = subprocess.check_output([java_exec, "-version"], stderr=subprocess.STDOUT)
-    return re.search(pattern, version.decode("utf-8")).groups()[0]
-
-
 def check_gremlin_server_ready(endpoint):
     def _check_task(endpoint):
         from gremlin_python.driver.client import Client
@@ -1722,5 +1776,5 @@ def check_gremlin_server_ready(endpoint):
             return rlt
         time.sleep(3)
         if time.time() - begin_time > INTERAVTIVE_INSTANCE_TIMEOUT_SECONDS:
-            executor.shutdown(wait=False, cancel_futures=True)
+            executor.shutdown(wait=False)
             raise TimeoutError(f"Gremlin check query failed: {error_message}")

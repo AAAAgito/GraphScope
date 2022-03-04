@@ -327,16 +327,16 @@ function run_lpa() {
 declare -a apps=(
   "sssp" 
   "sssp_has_path" 
-  "sssp_path"
+  # "sssp_path"
   "cdlp_auto" 
   "sssp_auto" 
   "wcc_auto" 
   "lcc_auto" 
   "bfs_auto" 
-  "pagerank_auto"
+  # "pagerank_auto"
   "kcore" 
   "hits" 
-  "bfs" 
+  # "bfs" 
   "avg_clustering" 
   "transitivity" 
   "triangles"
@@ -345,8 +345,8 @@ declare -a apps=(
 
 # these algorithms need to check with directed flag
 declare -a apps_with_directed=(
-  "katz" 
-  "eigenvector" 
+  # "katz" 
+  # "eigenvector" 
   "degree_centrality" 
   "clustering"
 )
@@ -391,7 +391,7 @@ then
   if [[ "${USER_JAR_PATH}"x != ""x ]]
   then
     echo "Running Java tests..."
-    run_vy ${np} ./run_java_app "${socket_file}" 2 "${test_dir}"/new_property/v2_e2/twitter_e 2 "${test_dir}"/new_property/v2_e2/twitter_v 0 0 1 com.alibaba.graphscope.example.property.sssp.ParallelPropertySSSPVertexData
+    run_vy_2 ${np} ./run_java_app "${socket_file}" 1 "${test_dir}"/projected_property/twitter_property_e "${test_dir}"/projected_property/twitter_property_v 1 0 1 com.alibaba.graphscope.example.bfs.BFS
   fi
 fi
 

@@ -26,21 +26,21 @@
 
 #include "core/config.h"
 #include "core/fragment/dynamic_fragment.h"
-#include "proto/types.pb.h"
+#include "proto/graphscope/proto/types.pb.h"
 
 namespace gs {
 
 namespace dynamic_projected_fragment_impl {
 template <typename T>
 typename std::enable_if<!std::is_same<T, grape::EmptyType>::value>::type
-pack_dynamic(folly::dynamic& d, const T& val) {
-  d = folly::dynamic(val);
+pack_dynamic(dynamic::Value& d, const T& val) {
+  d = dynamic::Value(val);
 }
 
 template <typename T>
 typename std::enable_if<std::is_same<T, grape::EmptyType>::value>::type
-pack_dynamic(folly::dynamic& d, const T& val) {
-  d = folly::dynamic(nullptr);
+pack_dynamic(dynamic::Value& d, const T& val) {
+  d = dynamic::Value();
 }
 
 /**
@@ -48,73 +48,73 @@ pack_dynamic(folly::dynamic& d, const T& val) {
  */
 template <typename T>
 typename std::enable_if<std::is_integral<T>::value, T>::type unpack_dynamic(
-    const folly::dynamic& data, const std::string& v_prop_key) {
-  return data.at(v_prop_key).asInt();
+    const dynamic::Value& data, const std::string& v_prop_key) {
+  return data[v_prop_key].GetInt64();
 }
 
 template <typename T>
 typename std::enable_if<std::is_floating_point<T>::value, T>::type
-unpack_dynamic(const folly::dynamic& data, const std::string& v_prop_key) {
-  return data.at(v_prop_key).asDouble();
+unpack_dynamic(const dynamic::Value& data, const std::string& v_prop_key) {
+  return data[v_prop_key].GetDouble();
 }
 
 template <typename T>
 typename std::enable_if<std::is_same<T, bool>::value, T>::type unpack_dynamic(
-    const folly::dynamic& data, const std::string& v_prop_key) {
-  return data.at(v_prop_key).asBool();
+    const dynamic::Value& data, const std::string& v_prop_key) {
+  return data[v_prop_key].GetBool();
 }
 
 template <typename T>
 typename std::enable_if<std::is_same<T, std::string>::value, T>::type
-unpack_dynamic(const folly::dynamic& data, const std::string& v_prop_key) {
-  return data.at(v_prop_key).asString();
+unpack_dynamic(const dynamic::Value& data, const std::string& v_prop_key) {
+  return data[v_prop_key].GetString();
 }
 
 template <typename T>
 typename std::enable_if<std::is_same<T, grape::EmptyType>::value, T>::type
-unpack_dynamic(const folly::dynamic& data, const std::string& v_prop_key) {
+unpack_dynamic(const dynamic::Value& data, const std::string& v_prop_key) {
   return grape::EmptyType();
 }
 
 template <typename T>
 typename std::enable_if<std::is_integral<T>::value>::type unpack_nbr(
-    dynamic_fragment_impl::Nbr<T>& nbr, const folly::dynamic& d,
+    dynamic_fragment_impl::Nbr<T>& nbr, const dynamic::Value& d,
     const std::string& key) {
-  nbr.set_data(d.at(key).asInt());
+  nbr.set_data(d[key].GetInt64());
 }
 
 template <typename T>
 typename std::enable_if<std::is_floating_point<T>::value>::type unpack_nbr(
-    dynamic_fragment_impl::Nbr<T>& nbr, const folly::dynamic& d,
+    dynamic_fragment_impl::Nbr<T>& nbr, const dynamic::Value& d,
     const std::string& key) {
-  nbr.set_data(d.at(key).asDouble());
+  nbr.set_data(d[key].GetDouble());
 }
 
 template <typename T>
 typename std::enable_if<std::is_same<std::string, T>::value>::type unpack_nbr(
-    dynamic_fragment_impl::Nbr<T>& nbr, const folly::dynamic& d,
+    dynamic_fragment_impl::Nbr<T>& nbr, const dynamic::Value& d,
     const std::string& key) {
-  nbr.set_data(d.at(key).asString());
+  nbr.set_data(d[key].GetString());
 }
 
 template <typename T>
 typename std::enable_if<std::is_same<bool, T>::value>::type unpack_nbr(
-    dynamic_fragment_impl::Nbr<T>& nbr, const folly::dynamic& d,
+    dynamic_fragment_impl::Nbr<T>& nbr, const dynamic::Value& d,
     const std::string& key) {
-  nbr.set_data(d.at(key).asBool());
+  nbr.set_data(d[key].GetBool());
 }
 
 template <typename T>
 typename std::enable_if<std::is_same<grape::EmptyType, T>::value>::type
-unpack_nbr(dynamic_fragment_impl::Nbr<T>& nbr, const folly::dynamic& d,
+unpack_nbr(dynamic_fragment_impl::Nbr<T>& nbr, const dynamic::Value& d,
            const std::string& key) {
   nbr.set_data(grape::EmptyType());
 }
 
 #define SET_PROJECTED_NBR                               \
   void set_nbr() {                                      \
-    auto original_nbr = map_current_->second;           \
-    auto& data = original_nbr.data();                   \
+    const auto& original_nbr = map_current_->second;    \
+    const auto& data = original_nbr.data();             \
                                                         \
     unpack_nbr<EDATA_T>(internal_nbr, data, prop_key_); \
     internal_nbr.set_neighbor(original_nbr.neighbor()); \
@@ -134,7 +134,7 @@ unpack_nbr(dynamic_fragment_impl::Nbr<T>& nbr, const folly::dynamic& d,
 template <typename EDATA_T>
 class ProjectedAdjLinkedList {
   using VID_T = vineyard::property_graph_types::VID_TYPE;
-  using NbrT = dynamic_fragment_impl::Nbr<folly::dynamic>;
+  using NbrT = dynamic_fragment_impl::Nbr<dynamic::Value>;
   using ProjectedNbrT = dynamic_fragment_impl::Nbr<EDATA_T>;
 
  public:
@@ -322,7 +322,7 @@ class ProjectedAdjLinkedList {
 template <typename EDATA_T>
 class ConstProjectedAdjLinkedList {
   using VID_T = vineyard::property_graph_types::VID_TYPE;
-  using NbrT = dynamic_fragment_impl::Nbr<folly::dynamic>;
+  using NbrT = dynamic_fragment_impl::Nbr<dynamic::Value>;
   using ProjectedNbrT = dynamic_fragment_impl::Nbr<EDATA_T>;
 
  public:
@@ -450,13 +450,24 @@ class DynamicProjectedFragment {
   using vertex_t = typename fragment_t::vertex_t;
   using vdata_t = VDATA_T;
   using edata_t = EDATA_T;
-  using projected_adj_linked_list_t =
+  using adj_list_t =
       dynamic_projected_fragment_impl::ProjectedAdjLinkedList<edata_t>;
-  using const_projected_adj_linked_list_t =
+  using const_adj_list_t =
       dynamic_projected_fragment_impl::ConstProjectedAdjLinkedList<edata_t>;
   using vertex_range_t = typename fragment_t::vertex_range_t;
+  using inner_vertices_t = vertex_range_t;
+  using outer_vertices_t = vertex_range_t;
+  using vertices_t = vertex_range_t;
+  using sub_vertices_t = vertex_range_t;
   template <typename DATA_T>
   using vertex_array_t = typename fragment_t::vertex_array_t<DATA_T>;
+
+  template <typename DATA_T>
+  using inner_vertex_array_t = typename fragment_t::vertex_array_t<DATA_T>;
+
+  template <typename DATA_T>
+  using outer_vertex_array_t = typename fragment_t::vertex_array_t<DATA_T>;
+
   // This member is used by grape::check_load_strategy_compatible()
   static constexpr grape::LoadStrategy load_strategy =
       grape::LoadStrategy::kBothOutIn;
@@ -474,8 +485,9 @@ class DynamicProjectedFragment {
                                                       e_prop);
   }
 
-  void PrepareToRunApp(grape::MessageStrategy strategy, bool need_split_edges) {
-    fragment_->PrepareToRunApp(strategy, need_split_edges);
+  void PrepareToRunApp(const grape::CommSpec& comm_spec,
+                       grape::PrepareConf conf) {
+    fragment_->PrepareToRunApp(comm_spec, conf);
   }
 
   inline fid_t fid() const { return fragment_->fid_; }
@@ -525,12 +537,6 @@ class DynamicProjectedFragment {
     auto data = fragment_->vdata()[v.GetValue()];
     return dynamic_projected_fragment_impl::unpack_dynamic<vdata_t>(
         data, v_prop_key_);
-  }
-
-  inline void SetData(const vertex_t& v, const vdata_t& val) {
-    assert(fragment_->IsInnerVertex(v));
-    dynamic_projected_fragment_impl::pack_dynamic(
-        fragment_->vdata()[v.GetValue()][v_prop_key_], val);
   }
 
   inline vid_t GetInnerVerticesNum() const {
@@ -617,7 +623,7 @@ class DynamicProjectedFragment {
     return fragment_->HasParent(v);
   }
 
-  inline projected_adj_linked_list_t GetIncomingAdjList(const vertex_t& v) {
+  inline adj_list_t GetIncomingAdjList(const vertex_t& v) {
     int32_t ie_pos;
     if (fragment_->duplicated() && fragment_->IsOuterVertex(v)) {
       ie_pos = fragment_->outer_ie_pos()[v.GetValue() - fragment_->ivnum()];
@@ -625,16 +631,14 @@ class DynamicProjectedFragment {
       ie_pos = fragment_->inner_ie_pos()[v.GetValue()];
     }
     if (ie_pos == -1) {
-      return projected_adj_linked_list_t();
+      return adj_list_t();
     }
-    return projected_adj_linked_list_t(
-        fragment_->id_mask(), fragment_->ivnum(), e_prop_key_,
-        fragment_->inner_edge_space()[ie_pos].begin(),
-        fragment_->inner_edge_space()[ie_pos].end());
+    return adj_list_t(fragment_->id_mask(), fragment_->ivnum(), e_prop_key_,
+                      fragment_->inner_edge_space()[ie_pos].begin(),
+                      fragment_->inner_edge_space()[ie_pos].end());
   }
 
-  inline const_projected_adj_linked_list_t GetIncomingAdjList(
-      const vertex_t& v) const {
+  inline const_adj_list_t GetIncomingAdjList(const vertex_t& v) const {
     int32_t ie_pos;
     if (fragment_->duplicated() && fragment_->IsOuterVertex(v)) {
       ie_pos = fragment_->outer_ie_pos()[v.GetValue() - fragment_->ivnum()];
@@ -642,63 +646,59 @@ class DynamicProjectedFragment {
       ie_pos = fragment_->inner_ie_pos()[v.GetValue()];
     }
     if (ie_pos == -1) {
-      return const_projected_adj_linked_list_t();
+      return const_adj_list_t();
     }
-    return const_projected_adj_linked_list_t(
-        fragment_->id_mask(), fragment_->ivnum(), e_prop_key_,
-        fragment_->inner_edge_space()[ie_pos].cbegin(),
-        fragment_->inner_edge_space()[ie_pos].cend());
+    return const_adj_list_t(fragment_->id_mask(), fragment_->ivnum(),
+                            e_prop_key_,
+                            fragment_->inner_edge_space()[ie_pos].cbegin(),
+                            fragment_->inner_edge_space()[ie_pos].cend());
   }
 
-  inline projected_adj_linked_list_t GetIncomingInnerVertexAdjList(
-      const vertex_t& v) {
+  inline adj_list_t GetIncomingInnerVertexAdjList(const vertex_t& v) {
     auto ie_pos = fragment_->inner_ie_pos()[v.GetValue()];
     if (ie_pos == -1) {
-      return projected_adj_linked_list_t();
+      return adj_list_t();
     }
-    return projected_adj_linked_list_t(
-        fragment_->id_mask(), fragment_->ivnum(), e_prop_key_,
-        fragment_->inner_edge_space().InnerNbr(ie_pos).begin(),
-        fragment_->inner_edge_space().InnerNbr(ie_pos).end());
+    return adj_list_t(fragment_->id_mask(), fragment_->ivnum(), e_prop_key_,
+                      fragment_->inner_edge_space().InnerNbr(ie_pos).begin(),
+                      fragment_->inner_edge_space().InnerNbr(ie_pos).end());
   }
 
-  inline const_projected_adj_linked_list_t GetIncomingInnerVertexAdjList(
+  inline const_adj_list_t GetIncomingInnerVertexAdjList(
       const vertex_t& v) const {
     auto ie_pos = fragment_->inner_ie_pos()[v.GetValue()];
     if (ie_pos == -1) {
-      return const_projected_adj_linked_list_t();
+      return const_adj_list_t();
     }
-    return const_projected_adj_linked_list_t(
+    return const_adj_list_t(
         fragment_->id_mask(), fragment_->ivnum(), e_prop_key_,
         fragment_->inner_edge_space().InnerNbr(ie_pos).cbegin(),
         fragment_->inner_edge_space().InnerNbr(ie_pos).cend());
   }
 
-  inline projected_adj_linked_list_t GetIncomingOuterVertexAdjList(
-      const vertex_t& v) {
+  inline adj_list_t GetIncomingOuterVertexAdjList(const vertex_t& v) {
     auto ie_pos = fragment_->inner_ie_pos()[v.GetValue()];
     if (ie_pos == -1) {
-      return projected_adj_linked_list_t();
+      return adj_list_t();
     }
-    return projected_adj_linked_list_t(
-        fragment_->id_mask(), fragment_->ivnum(), e_prop_key_,
-        fragment_->inner_edge_space().OuterNbr(ie_pos).begin(),
-        fragment_->inner_edge_space().OuterNbr(ie_pos).end());
+    return adj_list_t(fragment_->id_mask(), fragment_->ivnum(), e_prop_key_,
+                      fragment_->inner_edge_space().OuterNbr(ie_pos).begin(),
+                      fragment_->inner_edge_space().OuterNbr(ie_pos).end());
   }
 
-  inline const_projected_adj_linked_list_t GetIncomingOuterVertexAdjList(
+  inline const_adj_list_t GetIncomingOuterVertexAdjList(
       const vertex_t& v) const {
     auto ie_pos = fragment_->inner_ie_pos()[v.GetValue()];
     if (ie_pos == -1) {
-      return const_projected_adj_linked_list_t();
+      return const_adj_list_t();
     }
-    return const_projected_adj_linked_list_t(
+    return const_adj_list_t(
         fragment_->id_mask(), fragment_->ivnum(), e_prop_key_,
         fragment_->inner_edge_space().OuterNbr(ie_pos).cbegin(),
         fragment_->inner_edge_space().OuterNbr(ie_pos).cend());
   }
 
-  inline projected_adj_linked_list_t GetOutgoingAdjList(const vertex_t& v) {
+  inline adj_list_t GetOutgoingAdjList(const vertex_t& v) {
     int32_t oe_pos;
     if (fragment_->duplicated() && fragment_->IsOuterVertex(v)) {
       oe_pos = fragment_->outer_oe_pos()[v.GetValue() - fragment_->ivnum()];
@@ -706,16 +706,14 @@ class DynamicProjectedFragment {
       oe_pos = fragment_->inner_oe_pos()[v.GetValue()];
     }
     if (oe_pos == -1) {
-      return projected_adj_linked_list_t();
+      return adj_list_t();
     }
-    return projected_adj_linked_list_t(
-        fragment_->id_mask(), fragment_->ivnum(), e_prop_key_,
-        fragment_->inner_edge_space()[oe_pos].begin(),
-        fragment_->inner_edge_space()[oe_pos].end());
+    return adj_list_t(fragment_->id_mask(), fragment_->ivnum(), e_prop_key_,
+                      fragment_->inner_edge_space()[oe_pos].begin(),
+                      fragment_->inner_edge_space()[oe_pos].end());
   }
 
-  inline const_projected_adj_linked_list_t GetOutgoingAdjList(
-      const vertex_t& v) const {
+  inline const_adj_list_t GetOutgoingAdjList(const vertex_t& v) const {
     int32_t oe_pos;
     if (fragment_->duplicated() && fragment_->IsOuterVertex(v)) {
       oe_pos = fragment_->outer_oe_pos()[v.GetValue() - fragment_->ivnum()];
@@ -723,57 +721,53 @@ class DynamicProjectedFragment {
       oe_pos = fragment_->inner_oe_pos()[v.GetValue()];
     }
     if (oe_pos == -1) {
-      return const_projected_adj_linked_list_t();
+      return const_adj_list_t();
     }
-    return const_projected_adj_linked_list_t(
-        fragment_->id_mask(), fragment_->ivnum(), e_prop_key_,
-        fragment_->inner_edge_space()[oe_pos].cbegin(),
-        fragment_->inner_edge_space()[oe_pos].cend());
+    return const_adj_list_t(fragment_->id_mask(), fragment_->ivnum(),
+                            e_prop_key_,
+                            fragment_->inner_edge_space()[oe_pos].cbegin(),
+                            fragment_->inner_edge_space()[oe_pos].cend());
   }
 
-  inline projected_adj_linked_list_t GetOutgoingInnerVertexAdjList(
-      const vertex_t& v) {
+  inline adj_list_t GetOutgoingInnerVertexAdjList(const vertex_t& v) {
     auto oe_pos = fragment_->inner_oe_pos()[v.GetValue()];
     if (oe_pos == -1) {
-      return projected_adj_linked_list_t();
+      return adj_list_t();
     }
-    return projected_adj_linked_list_t(
-        fragment_->id_mask(), fragment_->ivnum(), e_prop_key_,
-        fragment_->inner_edge_space().InnerNbr(oe_pos).begin(),
-        fragment_->inner_edge_space().InnerNbr(oe_pos).end());
+    return adj_list_t(fragment_->id_mask(), fragment_->ivnum(), e_prop_key_,
+                      fragment_->inner_edge_space().InnerNbr(oe_pos).begin(),
+                      fragment_->inner_edge_space().InnerNbr(oe_pos).end());
   }
 
-  inline const_projected_adj_linked_list_t GetOutgoingInnerVertexAdjList(
+  inline const_adj_list_t GetOutgoingInnerVertexAdjList(
       const vertex_t& v) const {
     auto oe_pos = fragment_->inner_oe_pos()[v.GetValue()];
     if (oe_pos == -1) {
-      return const_projected_adj_linked_list_t();
+      return const_adj_list_t();
     }
-    return const_projected_adj_linked_list_t(
+    return const_adj_list_t(
         fragment_->id_mask(), fragment_->ivnum(), e_prop_key_,
         fragment_->inner_edge_space().InnerNbr(oe_pos).cbegin(),
         fragment_->inner_edge_space().InnerNbr(oe_pos).cend());
   }
 
-  inline projected_adj_linked_list_t GetOutgoingOuterVertexAdjList(
-      const vertex_t& v) {
+  inline adj_list_t GetOutgoingOuterVertexAdjList(const vertex_t& v) {
     auto oe_pos = fragment_->inner_oe_pos()[v.GetValue()];
     if (oe_pos == -1) {
-      return projected_adj_linked_list_t();
+      return adj_list_t();
     }
-    return projected_adj_linked_list_t(
-        fragment_->id_mask(), fragment_->ivnum(), e_prop_key_,
-        fragment_->inner_edge_space().OuterNbr(oe_pos).begin(),
-        fragment_->inner_edge_space().OuterNbr(oe_pos).end());
+    return adj_list_t(fragment_->id_mask(), fragment_->ivnum(), e_prop_key_,
+                      fragment_->inner_edge_space().OuterNbr(oe_pos).begin(),
+                      fragment_->inner_edge_space().OuterNbr(oe_pos).end());
   }
 
-  inline const_projected_adj_linked_list_t GetOutgoingOuterVertexAdjList(
+  inline const_adj_list_t GetOutgoingOuterVertexAdjList(
       const vertex_t& v) const {
     auto oe_pos = fragment_->inner_oe_pos()[v.GetValue()];
     if (oe_pos == -1) {
-      return const_projected_adj_linked_list_t();
+      return const_adj_list_t();
     }
-    return const_projected_adj_linked_list_t(
+    return const_adj_list_t(
         fragment_->id_mask(), fragment_->ivnum(), e_prop_key_,
         fragment_->inner_edge_space().OuterNbr(oe_pos).cbegin(),
         fragment_->inner_edge_space().OuterNbr(oe_pos).cend());
@@ -803,8 +797,7 @@ class DynamicProjectedFragment {
     return fragment_->MirrorVertices(fid);
   }
 
-  bl::result<folly::dynamic::Type> GetOidType(
-      const grape::CommSpec& comm_spec) const {
+  bl::result<dynamic::Type> GetOidType(const grape::CommSpec& comm_spec) const {
     return fragment_->GetOidType(comm_spec);
   }
 
