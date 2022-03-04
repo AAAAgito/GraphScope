@@ -93,8 +93,12 @@ pub mod test {
                 let entry = column.entry.unwrap();
                 // append entry without moving head
                 if let Some(tag) = tag {
-                    let columns = record.get_columns_mut();
-                    columns.insert(tag.clone(), Arc::new(Entry::try_from(entry).unwrap()));
+                    // let columns = record.get_columns_mut();
+                    // columns.insert(tag.clone(), Arc::new(Entry::try_from(entry).unwrap()));
+                    record.append_arc_entry_without_moving_head(
+                        Arc::new(Entry::try_from(entry).unwrap()),
+                        Some(tag),
+                    )
                 } else {
                     record.append(Entry::try_from(entry).unwrap(), None);
                 }
