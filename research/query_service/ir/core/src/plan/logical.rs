@@ -934,7 +934,10 @@ impl AsLogical for pb::GetV {
 }
 
 impl AsLogical for pb::Dedup {
-    fn preprocess(&mut self, _meta: &StoreMeta, _plan_meta: &mut PlanMeta) -> IrResult<()> {
+    fn preprocess(&mut self, meta: &StoreMeta, plan_meta: &mut PlanMeta) -> IrResult<()> {
+        for var in self.keys.iter_mut() {
+            preprocess_var(var, meta, plan_meta)?;
+        }
         Ok(())
     }
 }
@@ -1056,7 +1059,12 @@ impl AsLogical for pb::Join {
 }
 
 impl AsLogical for pb::Sink {
-    fn preprocess(&mut self, _meta: &StoreMeta, _plan_meta: &mut PlanMeta) -> IrResult<()> {
+    fn preprocess(&mut self, _meta: &StoreMeta, plan_meta: &mut PlanMeta) -> IrResult<()> {
+        for tag_key in self.tags.iter_mut() {
+            if let Some(tag) = tag_key.key.as_mut() {
+                get_or_set_tag_id(tag, true, plan_meta)?;
+            }
+        }
         Ok(())
     }
 }
