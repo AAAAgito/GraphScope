@@ -66,6 +66,7 @@ fileMetaStorePath: "/etc/graphscope-store/my.meta"
 ## Store Config
 storeDataPath: "/var/lib/graphscope-store"
 storeWriteThreadCount: 1
+graphSchema: "/usr/local/maxgraph/conf/ldbc.schema"
 
 ## Kafka Config
 kafkaTopic: "graph_test"
