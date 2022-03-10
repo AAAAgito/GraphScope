@@ -11,6 +11,7 @@ import org.apache.tinkerpop.gremlin.server.GremlinServer;
 import org.apache.tinkerpop.gremlin.server.Settings;
 import org.apache.tinkerpop.gremlin.server.op.AbstractOpProcessor;
 
+import java.io.InputStream;
 import java.util.Map;
 
 public class IrGremlinServer implements AutoCloseable {
@@ -41,6 +42,7 @@ public class IrGremlinServer implements AutoCloseable {
     }
 
     private Settings loadSettings() throws Exception {
-        return Settings.read("conf/gremlin-server.yaml");
+        InputStream input = getClass().getClassLoader().getResourceAsStream("conf/gremlin-server.yaml");
+        return Settings.read(input);
     }
 }
