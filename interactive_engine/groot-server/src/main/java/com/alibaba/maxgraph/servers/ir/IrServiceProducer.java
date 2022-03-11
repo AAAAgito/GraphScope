@@ -19,6 +19,7 @@ import com.alibaba.maxgraph.servers.AbstractService;
 import com.alibaba.maxgraph.servers.ComputeServiceProducer;
 import com.alibaba.maxgraph.servers.gaia.*;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -43,33 +44,37 @@ public class IrServiceProducer implements ComputeServiceProducer {
     @Override
     public AbstractService makeGraphService(
             SchemaFetcher schemaFetcher, ChannelManager channelManager) {
+        try {
+            int executorCount = CommonConfig.STORE_NODE_COUNT.get(configs);
+            RpcChannelFetcher channelFetcher =
+                    new RpcChannelManagerFetcher(channelManager, executorCount, RoleType.GAIA_RPC);
+            com.alibaba.graphscope.common.config.Configs irConfigs = getConfigs();
+            StoreConfigs storeConfigs = new GrootStoreConfigs(configs);
 
-        return new AbstractService() {
-            private IrGremlinServer irGremlinServer = new IrGremlinServer();
+            return new AbstractService() {
+                private IrGremlinServer irGremlinServer = new IrGremlinServer();
 
-            @Override
-            public void start() {
-                try {
-                    com.alibaba.graphscope.common.config.Configs irConfigs = getConfigs();
-                    StoreConfigs storeConfigs = new GrootStoreConfigs(configs);
-                    int executorCount = CommonConfig.STORE_NODE_COUNT.get(configs);
-                    RpcChannelFetcher channelFetcher =
-                            new RpcChannelManagerFetcher(channelManager, executorCount, RoleType.GAIA_RPC);
-                    irGremlinServer.start(irConfigs, storeConfigs, channelFetcher);
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
+                @Override
+                public void start() {
+                    try {
+                        irGremlinServer.start(irConfigs, storeConfigs, channelFetcher);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
                 }
-            }
 
-            @Override
-            public void stop() {
-                try {
-                    irGremlinServer.close();
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
+                @Override
+                public void stop() {
+                    try {
+                        irGremlinServer.close();
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
                 }
-            }
-        };
+            };
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
