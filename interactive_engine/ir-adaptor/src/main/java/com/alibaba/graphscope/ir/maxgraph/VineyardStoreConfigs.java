@@ -41,7 +41,7 @@ public class VineyardStoreConfigs implements StoreConfigs {
     }
 
     private Map<String, Object> getEntity(GraphElement entity) {
-        String label = entity.getLabel().toUpperCase();
+        String label = entity.getLabel();
         int labelId = entity.getLabelId();
         List<GraphProperty> properties = entity.getPropertyList();
         List columns = properties.stream().map(k -> {
@@ -64,8 +64,8 @@ public class VineyardStoreConfigs implements StoreConfigs {
             GraphVertex src = k.getSource();
             GraphVertex dst = k.getTarget();
             return ImmutableMap.of(
-                    "src", ImmutableMap.of("id", src.getLabelId(), "name", src.getLabel().toUpperCase()),
-                    "dst", ImmutableMap.of("id", dst.getLabelId(), "name", dst.getLabel().toUpperCase()));
+                    "src", ImmutableMap.of("id", src.getLabelId(), "name", src.getLabel()),
+                    "dst", ImmutableMap.of("id", dst.getLabelId(), "name", dst.getLabel()));
         }).collect(Collectors.toList());
         entity.put("entity_pairs", entityPairs);
         return entity;
