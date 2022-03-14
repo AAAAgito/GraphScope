@@ -36,7 +36,7 @@ public class GrootStoreConfigs implements StoreConfigs {
             entities.add(getEntity(v));
         });
         edges.forEach(e -> {
-            entities.add(getEntity(e));
+            entities.add(getEdge(e));
         });
         Map<String, Object> schemaMap = ImmutableMap.of("entities", entities);
         return JsonUtils.toJson(schemaMap);
