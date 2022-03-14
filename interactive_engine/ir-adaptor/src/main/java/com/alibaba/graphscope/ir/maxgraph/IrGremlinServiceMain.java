@@ -24,7 +24,7 @@ public class IrGremlinServiceMain {
         RpcAddressFetcher addressFetcher = new ExecutorAddressFetcher(clientManager);
         RpcChannelFetcher channelFetcher = new RpcAddressChannelFetcher(addressFetcher);
 
-        IrGremlinServer gremlinServer = new IrGremlinServer();
+        IrGremlinServer gremlinServer = new IrGremlinServer(instanceConfig.getGremlinServerPort());
         gremlinServer.start(configs, storeConfigs, channelFetcher);
     }
 

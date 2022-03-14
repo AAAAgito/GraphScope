@@ -14,6 +14,7 @@ import com.alibaba.graphscope.groot.store.StoreService;
 import com.alibaba.maxgraph.common.RoleType;
 import com.alibaba.maxgraph.common.config.CommonConfig;
 import com.alibaba.maxgraph.common.config.Configs;
+import com.alibaba.maxgraph.common.config.GremlinConfig;
 import com.alibaba.maxgraph.compiler.api.schema.SchemaFetcher;
 import com.alibaba.maxgraph.servers.AbstractService;
 import com.alibaba.maxgraph.servers.ComputeServiceProducer;
@@ -52,7 +53,7 @@ public class IrServiceProducer implements ComputeServiceProducer {
             StoreConfigs storeConfigs = new GrootStoreConfigs(configs);
 
             return new AbstractService() {
-                private IrGremlinServer irGremlinServer = new IrGremlinServer();
+                private IrGremlinServer irGremlinServer = new IrGremlinServer(GremlinConfig.GREMLIN_PORT.get(configs));
 
                 @Override
                 public void start() {

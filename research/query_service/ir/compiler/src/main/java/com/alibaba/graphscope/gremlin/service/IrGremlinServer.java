@@ -18,6 +18,17 @@ public class IrGremlinServer implements AutoCloseable {
     private static final IrCoreLibrary INSTANCE = IrCoreLibrary.INSTANCE;
 
     private GremlinServer gremlinServer;
+    private Settings settings;
+
+    public IrGremlinServer() {
+        InputStream input = getClass().getClassLoader().getResourceAsStream("conf/gremlin-server.yaml");
+        settings = Settings.read(input);
+    }
+
+    public IrGremlinServer(int gremlinPort) {
+        this();
+        settings.port = (gremlinPort >= 0) ? gremlinPort : settings.port;
+    }
 
     public void start(Configs configs, StoreConfigs storeConfigs, RpcChannelFetcher fetcher) throws Exception {
         AbstractOpProcessor standardProcessor = new IrStandardOpProcessor(configs, fetcher);
@@ -29,7 +40,6 @@ public class IrGremlinServer implements AutoCloseable {
         Map<String, Object> configMap = storeConfigs.getConfigs();
         INSTANCE.setSchema((String) configMap.get("graph.schema"));
 
-        Settings settings = loadSettings();
         this.gremlinServer = new GremlinServer(settings);
         this.gremlinServer.start();
     }
@@ -39,10 +49,5 @@ public class IrGremlinServer implements AutoCloseable {
         if (this.gremlinServer != null) {
             this.gremlinServer.stop();
         }
-    }
-
-    private Settings loadSettings() throws Exception {
-        InputStream input = getClass().getClassLoader().getResourceAsStream("conf/gremlin-server.yaml");
-        return Settings.read(input);
     }
 }
