@@ -61,13 +61,13 @@ impl SourceOperator {
                             .collect();
                         if !global_ids.is_empty() {
                             source_op.set_src(global_ids, job_workers, partitioner);
-                            debug!("Runtime source op of indexed scan {:?}", source_op);
+                            info!("Runtime source op of indexed scan {:?}", source_op);
                         }
                         Ok(source_op)
                     } else {
                         let mut source_op = SourceOperator::try_from(scan)?;
                         source_op.set_partitions(job_workers, worker_index, partitioner);
-                        debug!("Runtime source op of scan {:?}", source_op);
+                        info!("Runtime source op of scan {:?}", source_op);
                         Ok(source_op)
                     }
                 }

@@ -40,7 +40,7 @@ impl RecordRouter {
             .key
             .map(|e| e.try_into())
             .transpose()?;
-        debug!("Runtime shuffle number of worker {:?} and shuffle key {:?}", num_workers, shuffle_key);
+        info!("Runtime shuffle number of worker {:?} and shuffle key {:?}", num_workers, shuffle_key);
         Ok(RecordRouter { p, num_workers, shuffle_key })
     }
 }

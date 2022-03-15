@@ -215,7 +215,7 @@ impl SinkFunctionGen for algebra_pb::Sink {
             sink_keys,
             schema_map: if schema_map.is_empty() { None } else { Some(schema_map) },
         };
-        debug!("Runtime sink operator: {:?}", record_sinker);
+        info!("Runtime sink operator: {:?}", record_sinker);
         Ok(Box::new(record_sinker))
     }
 }

@@ -110,7 +110,7 @@ impl ApplyGen<Record, Vec<Record>, Option<Record>> for algebra_pb::Apply {
             }
         }
         let apply_operator = ApplyOperator { join_kind, alias };
-        debug!("Runtime apply operator {:?}", apply_operator);
+        info!("Runtime apply operator {:?}", apply_operator);
         Ok(Box::new(apply_operator))
     }
 }

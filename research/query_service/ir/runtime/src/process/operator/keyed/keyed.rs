@@ -60,7 +60,7 @@ impl KeyFunctionGen for algebra_pb::GroupBy {
                 .map(|mapping| mapping.key.clone().unwrap())
                 .collect::<Vec<_>>(),
         )?;
-        debug!("Runtime group operator key_selector: {:?}", key_selector);
+        info!("Runtime group operator key_selector: {:?}", key_selector);
         Ok(Box::new(key_selector))
     }
 }
@@ -68,7 +68,7 @@ impl KeyFunctionGen for algebra_pb::GroupBy {
 impl KeyFunctionGen for algebra_pb::Dedup {
     fn gen_key(self) -> FnGenResult<Box<dyn KeyFunction<Record, RecordKey, Record>>> {
         let key_selector = KeySelector::with(self.keys)?;
-        debug!("Runtime dedup operator key_selector: {:?}", key_selector);
+        info!("Runtime dedup operator key_selector: {:?}", key_selector);
         Ok(Box::new(key_selector))
     }
 }

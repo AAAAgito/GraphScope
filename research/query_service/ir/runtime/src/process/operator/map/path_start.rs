@@ -51,7 +51,7 @@ impl MapFuncGen for algebra_pb::PathStart {
             .map(|tag| tag.try_into())
             .transpose()?;
         let path_start_operator = PathStartOperator { start_tag, is_whole_path: self.is_whole_path };
-        debug!("Runtime path start operator: {:?}", path_start_operator);
+        info!("Runtime path start operator: {:?}", path_start_operator);
         Ok(Box::new(path_start_operator))
     }
 }
