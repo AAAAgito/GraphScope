@@ -172,10 +172,10 @@ public class IrStandardOpProcessor extends StandardOpProcessor {
                             byte[] physicalPlanBytes = irPlan.toPhysicalBytes(configs);
                             irPlan.close();
 
-                            int serverNum = PegasusConfig.PEGASUS_HOSTS.get(configs).split(",").length;
+                            String[] splits = PegasusConfig.PEGASUS_SERVERS.get(configs).split(",");
                             List<Long> servers = new ArrayList<>();
-                            for (long i = 0; i < serverNum; ++i) {
-                                servers.add(i);
+                            for (int i = 0; i < splits.length; ++i) {
+                                servers.add(Long.valueOf(splits[i]));
                             }
 
                             long jobId = JOB_ID_COUNTER.incrementAndGet();
