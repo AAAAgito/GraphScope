@@ -8,6 +8,7 @@ import com.alibaba.maxgraph.compiler.schema.JsonFileSchemaFetcher;
 import com.google.common.collect.ImmutableMap;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -30,17 +31,40 @@ public class VineyardStoreConfigs implements StoreConfigs {
         List<GraphVertex> vertices = graphSchema.getVertexList();
         List<GraphEdge> edges = graphSchema.getEdgeList();
         List entities = new ArrayList();
+        List relations = new ArrayList();
         vertices.forEach(v -> {
-            entities.add(getEntity(v));
+            entities.add(getVertex(v));
         });
         edges.forEach(e -> {
-            entities.add(getEdge(e));
+            relations.add(getEdge(e));
         });
-        Map<String, Object> schemaMap = ImmutableMap.of("entities", entities);
+        Map<String, Object> schemaMap = ImmutableMap.of(
+                "entities", entities,
+                "relations", relations,
+                "is_table_id", true,
+                "is_column_id", true);
         return JsonUtils.toJson(schemaMap);
     }
 
-    private Map<String, Object> getEntity(GraphElement entity) {
+    private Map<String, Object> getVertex(GraphVertex vertex) {
+        return getElement(vertex);
+    }
+
+    private Map<String, Object> getEdge(GraphEdge edge) {
+        Map<String, Object> entity = new LinkedHashMap(getElement(edge));
+        List<EdgeRelation> relations = edge.getRelationList();
+        List entityPairs = relations.stream().map(k -> {
+            GraphVertex src = k.getSource();
+            GraphVertex dst = k.getTarget();
+            return ImmutableMap.of(
+                    "src", ImmutableMap.of("id", src.getLabelId(), "name", src.getLabel()),
+                    "dst", ImmutableMap.of("id", dst.getLabelId(), "name", dst.getLabel()));
+        }).collect(Collectors.toList());
+        entity.put("entity_pairs", entityPairs);
+        return entity;
+    }
+
+    private Map<String, Object> getElement(GraphElement entity) {
         String label = entity.getLabel();
         int labelId = entity.getLabelId();
         List<GraphProperty> properties = entity.getPropertyList();
@@ -55,20 +79,6 @@ public class VineyardStoreConfigs implements StoreConfigs {
         return ImmutableMap.of(
                 "label", ImmutableMap.of("id", labelId, "name", label),
                 "columns", columns);
-    }
-
-    private Map<String, Object> getEdge(GraphEdge edge) {
-        Map<String, Object> entity = getEntity(edge);
-        List<EdgeRelation> relations = edge.getRelationList();
-        List entityPairs = relations.stream().map(k -> {
-            GraphVertex src = k.getSource();
-            GraphVertex dst = k.getTarget();
-            return ImmutableMap.of(
-                    "src", ImmutableMap.of("id", src.getLabelId(), "name", src.getLabel()),
-                    "dst", ImmutableMap.of("id", dst.getLabelId(), "name", dst.getLabel()));
-        }).collect(Collectors.toList());
-        entity.put("entity_pairs", entityPairs);
-        return entity;
     }
 
     private int getDataTypeId(DataType dataType) {
