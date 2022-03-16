@@ -66,6 +66,7 @@ public class IrGremlinTestSuite extends AbstractGremlinSuite {
 
             GroupTest.Traversals.class,
             GroupCountTest.Traversals.class,
+            IrAdditionalQueryTest.Traversals.class,
 
             //match
             MatchTest.CountMatchTraversals.class,
@@ -99,6 +100,7 @@ public class IrGremlinTestSuite extends AbstractGremlinSuite {
 
             GroupTest.Traversals.class,
             GroupCountTest.Traversals.class,
+            IrAdditionalQueryTest.Traversals.class,
 
             //match
             MatchTest.CountMatchTraversals.class,

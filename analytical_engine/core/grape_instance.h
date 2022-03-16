@@ -39,8 +39,8 @@
 #include "core/server/dispatcher.h"
 #include "core/server/graphscope_service.h"
 #include "core/server/rpc_utils.h"
-#include "proto/query_args.pb.h"
-#include "proto/types.pb.h"
+#include "proto/graphscope/proto/query_args.pb.h"
+#include "proto/graphscope/proto/types.pb.h"
 
 namespace gs {
 /**
@@ -77,7 +77,7 @@ class GrapeInstance : public Subscriber {
   void Init(const std::string& vineyard_socket);
 
   bl::result<std::shared_ptr<DispatchResult>> OnReceive(
-      const CommandDetail& cmd) override;
+      std::shared_ptr<CommandDetail> cmd) override;
 
  private:
   bl::result<rpc::graph::GraphDefPb> loadGraph(const rpc::GSParams& params);
@@ -100,11 +100,9 @@ class GrapeInstance : public Subscriber {
   bl::result<rpc::graph::GraphDefPb> projectToSimple(
       const rpc::GSParams& params);
 
-  bl::result<void> modifyVertices(const rpc::GSParams& params,
-                                  const std::vector<std::string>& vertices);
+  bl::result<void> modifyVertices(const rpc::GSParams& params);
 
-  bl::result<void> modifyEdges(const rpc::GSParams& params,
-                               const std::vector<std::string>& edges);
+  bl::result<void> modifyEdges(const rpc::GSParams& params);
 
   bl::result<void> clearEdges(const rpc::GSParams& params);
 
@@ -136,12 +134,7 @@ class GrapeInstance : public Subscriber {
 
 #ifdef NETWORKX
   bl::result<rpc::graph::GraphDefPb> induceSubGraph(
-      const rpc::GSParams& params,
-      const std::unordered_set<typename DynamicFragment::oid_t>&
-          induced_vertices,
-      const std::vector<std::pair<typename DynamicFragment::oid_t,
-                                  typename DynamicFragment::oid_t>>&
-          induced_edges);
+      const rpc::GSParams& params);
 #endif  // NETWORKX
 
   bl::result<rpc::graph::GraphDefPb> addLabelsToGraph(
@@ -199,10 +192,8 @@ class GrapeInstance : public Subscriber {
 
     if (comm_spec_.worker_id() == grape::kCoordinatorRank) {
       id = vineyard::random_string(8);
-      grape::BcastSend(id, MPI_COMM_WORLD);
-    } else {
-      grape::BcastRecv(id, MPI_COMM_WORLD, grape::kCoordinatorRank);
     }
+    grape::sync_comm::Bcast(id, grape::kCoordinatorRank, MPI_COMM_WORLD);
     return id;
   }
 

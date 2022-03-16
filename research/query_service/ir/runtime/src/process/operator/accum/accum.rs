@@ -164,7 +164,7 @@ impl AccumFactoryGen for algebra_pb::GroupBy {
             };
             accum_ops.push((entry_accumulator, tag_key, alias));
         }
-        debug!("Runtime accumulator operator: {:?}", accum_ops);
+        info!("Runtime accumulator operator: {:?}", accum_ops);
         Ok(RecordAccumulator { accum_ops })
     }
 }

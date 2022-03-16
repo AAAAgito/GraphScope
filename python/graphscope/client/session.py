@@ -95,7 +95,7 @@ class _FetchHandler(object):
             if hasattr(fetch, "op"):
                 fetch = fetch.op
             if not isinstance(fetch, Operation):
-                raise ValueError("Expect a `Operation` in sess run method.")
+                raise ValueError("Expect an `Operation` in sess run method.")
             self._ops.append(fetch)
         # extract sub dag
         self._sub_dag = dag.extract_subdag_for(self._ops)
@@ -804,7 +804,6 @@ class Session(object):
     def _close(self):
         if self._closed:
             return
-        time.sleep(5)
         self._closed = True
         self._coordinator_endpoint = None
 
@@ -1168,13 +1167,49 @@ class Session(object):
         """Start a graph learning engine.
 
         Args:
-            nodes (list): The node types that will be used for gnn training.
-            edges (list): The edge types that will be used for gnn training.
-            gen_labels (list): Extra node and edge labels on original graph for gnn training.
+            graph (:class:`graphscope.framework.graph.GraphDAGNode`):
+                The graph to create learning instance.
+            nodes (list, optional): list of node types that will be used for GNN
+                training, the element of list can be `"node_label"` or
+                `(node_label, features)`. If the element of the list is a tuple and
+                contains selected feature list, it would use the selected
+                feature list for training. Default is None which use all type of
+                nodes and for the GNN training.
+            edges (list, optional): list of edge types that will be used for GNN
+                training. We use `(src_label, edge_label, dst_label)`
+                to specify one edge type. Default is None which use all type of
+                edges for GNN training.
+            gen_labels (list, optional): Alias node and edge labels and extract
+                train/validation/test dataset from original graph for supervised
+                GNN training. The detail is explained in the examples below.
 
-        Returns:
-            :class:`graphscope.learning.GraphDAGNode`:
-                An instance of learning graph that could be feed to the learning engine, evaluated in eager node.
+        Examples
+        --------
+        >>> # Assume the input graph contains one label node `paper` and one edge label `link`.
+        >>> features = ["weight", "name"] # use properties "weight" and "name" as features
+        >>> lg = sess.graphlearn(
+                graph,
+                nodes=[("paper", features)])  # use "paper" node and features for training
+                edges=[("paper", "links", "paper")]  # use the `paper->links->papers` edge type for training
+                gen_labels=[
+                    # split "paper" nodes into 100 pieces, and uses random 75 pieces (75%) as training dataset
+                    ("train", "paper", 100, (0, 75)),
+                    # split "paper" nodes into 100 pieces, and uses random 10 pieces (10%) as validation dataset
+                    ("val", "paper", 100, (75, 85)),
+                    # split "paper" nodes into 100 pieces, and uses random 15 pieces (15%) as test dataset
+                    ("test", "paper", 100, (85, 100)),
+                ]
+            )
+        Note that the training, validation and test datasets are not overlapping. And for unsupervised learning:
+        >>> lg = sess.graphlearn(
+                graph,
+                nodes=[("paper", features)])  # use "paper" node and features for training
+                edges=[("paper", "links", "paper")]  # use the `paper->links->papers` edge type for training
+                gen_labels=[
+                    # split "paper" nodes into 100 pieces, and uses all pieces as training dataset
+                    ("train", "paper", 100, (0, 100)),
+                ]
+            )
         """
         if self._session_id != graph.session_id:
             raise RuntimeError(
@@ -1354,14 +1389,19 @@ def default_session(session):
     return _default_session_stack.get_controller(session)
 
 
+def has_default_session():
+    """True if default session exists in current context."""
+    return not _default_session_stack.empty()
+
+
 def get_default_session():
     """Returns the default session for the current context.
 
-    Raises:
-        RuntimeError: Default session is not exist.
+    Note that a new session will be created if there is no
+    default session in current context.
 
     Returns:
-        The default :class:`Session`.
+        The default :class:`graphscope.Session`.
     """
     return _default_session_stack.get_default()
 
@@ -1386,6 +1426,9 @@ class _DefaultSessionStack(object):
             sess = session(cluster_type="hosts", num_workers=1)
             sess.as_default()
         return self.stack[-1]
+
+    def empty(self):
+        return len(self.stack) == 0
 
     def reset(self):
         self.stack = []
@@ -1458,7 +1501,7 @@ def gremlin(graph, engine_params=None):
 def graphlearn(graph, nodes=None, edges=None, gen_labels=None):
     """Create a graph learning engine.
 
-    See params detail in :meth:`graphscope.Session.learning`
+    See params detail in :meth:`graphscope.Session.graphlearn`
 
     Returns:
         :class:`graphscope.learning.GraphDAGNode`:

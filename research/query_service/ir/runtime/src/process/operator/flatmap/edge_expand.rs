@@ -76,7 +76,7 @@ impl FlatMapFuncGen for algebra_pb::EdgeExpand {
             unsafe { ::std::mem::transmute(self.direction) };
         let direction = Direction::from(direction_pb);
         let query_params = self.params.try_into()?;
-        debug!(
+        info!(
             "Runtime expand operator of edge with start_v_tag {:?}, edge_tag {:?}, direction {:?}, query_params {:?}",
             start_v_tag, edge_or_end_v_tag, direction, query_params
         );

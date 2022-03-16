@@ -140,7 +140,7 @@ impl MapFuncGen for algebra_pb::Project {
             projected_columns.push((projector, alias));
         }
         let project_operator = ProjectOperator { is_append: self.is_append, projected_columns };
-        debug!("Runtime project operator {:?}", project_operator);
+        info!("Runtime project operator {:?}", project_operator);
         Ok(Box::new(project_operator))
     }
 }

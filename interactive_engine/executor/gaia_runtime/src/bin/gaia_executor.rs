@@ -33,6 +33,7 @@ extern crate structopt;
 
 use gaia_runtime::server::init_with_rpc_service;
 use gaia_runtime::server::manager::GaiaServerManager;
+use gremlin_core::register_gremlin_types;
 use grpcio::ChannelBuilder;
 use grpcio::EnvBuilder;
 use gs_gremlin::{InitializeJobCompiler, QueryVineyard};
@@ -130,6 +131,10 @@ fn run_main<V, VI, E, EI>(
         Box::new(recover_prepare),
     )
     .unwrap();
+
+    if let Err(err) = register_gremlin_types() {
+        error!("register_gremlin_types failed {:?}", err);
+    }
 
     let gaia_service = GaiaService::new(
         store_config.clone(),

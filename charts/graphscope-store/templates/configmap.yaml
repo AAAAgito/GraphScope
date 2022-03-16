@@ -41,6 +41,7 @@ data:
     ## Store Config
     store.data.path={{ .Values.storeDataPath }}
     store.write.thread.count={{ .Values.storeWriteThreadCount }}
+    graph.schema={{ .Values.graphSchema }}
 
     ## Kafka Config
     kafka.servers=KAFKA_SERVERS

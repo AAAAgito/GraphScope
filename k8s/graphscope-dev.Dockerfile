@@ -4,7 +4,7 @@
 # the result image includes all runtime stuffs of graphscope, with analytical engine,
 # learning engine and interactive engine installed.
 
-ARG BASE_VERSION=v0.3.12
+ARG BASE_VERSION=v0.3.19
 FROM registry.cn-hongkong.aliyuncs.com/graphscope/graphscope-vineyard:$BASE_VERSION as builder
 
 ARG NETWORKX=ON
@@ -48,7 +48,7 @@ RUN export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/graphscope/lib:/opt/graphscope/
 RUN source ~/.bashrc \
     && echo "build with profile: $profile" \
     && cd ${HOME}/gs && make BUILD_TYPE=$profile gie
-    
+
 
 # # # # # # # # # # # # # # # # # # # # # #
 # generate final runtime image
@@ -67,7 +67,7 @@ COPY --from=builder /home/graphscope/gs/interactive_engine/executor/target/$prof
 COPY --from=builder /home/graphscope/gs/interactive_engine/assembly/target/maxgraph-assembly-0.0.1-SNAPSHOT.tar.gz /opt/graphscope/maxgraph-assembly-0.0.1-SNAPSHOT.tar.gz
 
 # install mars
-RUN pip3 install git+https://github.com/mars-project/mars.git@d09e1e4c3e32ceb05f42d0b5b79775b1ebd299fb#egg=pymars
+RUN python3 -m pip install pymars==0.8.0
 
 RUN sudo tar -xf /opt/graphscope/maxgraph-assembly-0.0.1-SNAPSHOT.tar.gz --strip-components 1 -C /opt/graphscope \
   && cd /usr/local/dist && pip3 install ./*.whl \

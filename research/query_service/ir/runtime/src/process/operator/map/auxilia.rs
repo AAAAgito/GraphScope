@@ -81,7 +81,7 @@ impl FilterMapFuncGen for algebra_pb::Auxilia {
             .map(|alias| alias.try_into())
             .transpose()?;
         let auxilia_operator = AuxiliaOperator { query_params, alias };
-        debug!("Runtime auxilia operator: {:?}", auxilia_operator);
+        info!("Runtime auxilia operator: {:?}", auxilia_operator);
         Ok(Box::new(auxilia_operator))
     }
 }
