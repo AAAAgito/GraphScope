@@ -1,44 +1,42 @@
 package com.alibaba.maxgraph.servers.ir;
 
-import com.alibaba.graphscope.common.store.StoreConfigs;
+import com.alibaba.graphscope.common.store.IrMetaFetcher;
 import com.alibaba.graphscope.common.utils.JsonUtils;
-import com.alibaba.graphscope.gremlin.Utils;
-import com.alibaba.graphscope.groot.schema.GraphSchemaMapper;
-import com.alibaba.maxgraph.common.config.Configs;
 import com.alibaba.maxgraph.compiler.api.schema.*;
 import com.google.common.collect.ImmutableMap;
+import org.apache.commons.lang3.tuple.Pair;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
-public class GrootStoreConfigs implements StoreConfigs {
-    private GraphSchema graphSchema;
+public class GrootMetaFetcher extends IrMetaFetcher {
+    private SchemaFetcher schemaFetcher;
 
-    public GrootStoreConfigs(Configs configs) throws IOException {
-        String schemaPath = SchemaConfig.SCHEMA_PATH.get(configs);
-        String schemaJson = Utils.readStringFromFile(schemaPath);
-        this.graphSchema = GraphSchemaMapper.parseFromJson(schemaJson).toGraphSchema();
+    public GrootMetaFetcher(SchemaFetcher schemaFetcher) {
+        this.schemaFetcher = schemaFetcher;
     }
 
     @Override
-    public Map<String, Object> getConfigs() {
-        return ImmutableMap.of("graph.schema", parseSchema());
+    protected Optional<String> getIrMeta() {
+        Pair<GraphSchema, Long> pair = this.schemaFetcher.getSchemaSnapshotPair();
+        GraphSchema schema;
+        if (pair != null && (schema = pair.getLeft()) != null) {
+            return Optional.of(parseSchema(schema));
+        } else {
+            return Optional.empty();
+        }
     }
 
-    private String parseSchema() {
+    private String parseSchema(GraphSchema graphSchema) {
         List<GraphVertex> vertices = graphSchema.getVertexList();
         List<GraphEdge> edges = graphSchema.getEdgeList();
         List entities = new ArrayList();
         List relations = new ArrayList();
         vertices.forEach(v -> {
-            entities.add(getVertex(v));
+            entities.add(getVertex(graphSchema, v));
         });
         edges.forEach(e -> {
-            relations.add(getEdge(e));
+            relations.add(getEdge(graphSchema, e));
         });
         Map<String, Object> schemaMap = ImmutableMap.of(
                 "entities", entities,
@@ -48,12 +46,12 @@ public class GrootStoreConfigs implements StoreConfigs {
         return JsonUtils.toJson(schemaMap);
     }
 
-    private Map<String, Object> getVertex(GraphVertex vertex) {
-        return getElement(vertex);
+    private Map<String, Object> getVertex(GraphSchema graphSchema, GraphVertex vertex) {
+        return getElement(graphSchema, vertex);
     }
 
-    private Map<String, Object> getEdge(GraphEdge edge) {
-        Map<String, Object> entity = new LinkedHashMap(getElement(edge));
+    private Map<String, Object> getEdge(GraphSchema graphSchema, GraphEdge edge) {
+        Map<String, Object> entity = new LinkedHashMap(getElement(graphSchema, edge));
         List<EdgeRelation> relations = edge.getRelationList();
         List entityPairs = relations.stream().map(k -> {
             GraphVertex src = k.getSource();
@@ -66,7 +64,7 @@ public class GrootStoreConfigs implements StoreConfigs {
         return entity;
     }
 
-    private Map<String, Object> getElement(GraphElement entity) {
+    private Map<String, Object> getElement(GraphSchema graphSchema, GraphElement entity) {
         String label = entity.getLabel();
         int labelId = entity.getLabelId();
         List<GraphProperty> properties = entity.getPropertyList();

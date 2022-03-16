@@ -1,42 +1,46 @@
 package com.alibaba.graphscope.ir.maxgraph;
 
-import com.alibaba.graphscope.common.store.StoreConfigs;
+import com.alibaba.graphscope.common.store.IrMetaFetcher;
 import com.alibaba.graphscope.common.utils.JsonUtils;
 import com.alibaba.maxgraph.common.cluster.InstanceConfig;
 import com.alibaba.maxgraph.compiler.api.schema.*;
 import com.alibaba.maxgraph.compiler.schema.JsonFileSchemaFetcher;
 import com.google.common.collect.ImmutableMap;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
-public class VineyardStoreConfigs implements StoreConfigs {
-    private GraphSchema graphSchema;
+public class VineyardMetaFetcher extends IrMetaFetcher {
+    private InstanceConfig instanceConfig;
 
-    public VineyardStoreConfigs(InstanceConfig instanceConfig) {
-        String schemaPath = instanceConfig.getVineyardSchemaPath();
-        JsonFileSchemaFetcher fetcher = new JsonFileSchemaFetcher(schemaPath);
-        this.graphSchema = fetcher.getSchemaSnapshotPair().getLeft();
+    public VineyardMetaFetcher(InstanceConfig instanceConfig) {
+        this.instanceConfig = instanceConfig;
+        super.fetch();
     }
 
     @Override
-    public Map<String, Object> getConfigs() {
-        return ImmutableMap.of("graph.schema", parseSchema());
+    protected Optional<String> getIrMeta() {
+        String schemaPath = instanceConfig.getVineyardSchemaPath();
+        JsonFileSchemaFetcher fetcher = new JsonFileSchemaFetcher(schemaPath);
+        GraphSchema graphSchema = fetcher.getSchemaSnapshotPair().getLeft();
+        return Optional.of(parseSchema(graphSchema));
     }
 
-    private String parseSchema() {
+    @Override
+    public void fetch() {
+        // do nothing
+    }
+
+    private String parseSchema(GraphSchema graphSchema) {
         List<GraphVertex> vertices = graphSchema.getVertexList();
         List<GraphEdge> edges = graphSchema.getEdgeList();
         List entities = new ArrayList();
         List relations = new ArrayList();
         vertices.forEach(v -> {
-            entities.add(getVertex(v));
+            entities.add(getVertex(graphSchema, v));
         });
         edges.forEach(e -> {
-            relations.add(getEdge(e));
+            relations.add(getEdge(graphSchema, e));
         });
         Map<String, Object> schemaMap = ImmutableMap.of(
                 "entities", entities,
@@ -46,12 +50,12 @@ public class VineyardStoreConfigs implements StoreConfigs {
         return JsonUtils.toJson(schemaMap);
     }
 
-    private Map<String, Object> getVertex(GraphVertex vertex) {
-        return getElement(vertex);
+    private Map<String, Object> getVertex(GraphSchema graphSchema, GraphVertex vertex) {
+        return getElement(graphSchema, vertex);
     }
 
-    private Map<String, Object> getEdge(GraphEdge edge) {
-        Map<String, Object> entity = new LinkedHashMap(getElement(edge));
+    private Map<String, Object> getEdge(GraphSchema graphSchema, GraphEdge edge) {
+        Map<String, Object> entity = new LinkedHashMap(getElement(graphSchema, edge));
         List<EdgeRelation> relations = edge.getRelationList();
         List entityPairs = relations.stream().map(k -> {
             GraphVertex src = k.getSource();
@@ -64,7 +68,7 @@ public class VineyardStoreConfigs implements StoreConfigs {
         return entity;
     }
 
-    private Map<String, Object> getElement(GraphElement entity) {
+    private Map<String, Object> getElement(GraphSchema graphSchema, GraphElement entity) {
         String label = entity.getLabel();
         int labelId = entity.getLabelId();
         List<GraphProperty> properties = entity.getPropertyList();

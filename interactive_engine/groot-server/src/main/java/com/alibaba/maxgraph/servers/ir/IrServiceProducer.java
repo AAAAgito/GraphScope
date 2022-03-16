@@ -2,7 +2,7 @@ package com.alibaba.maxgraph.servers.ir;
 
 import com.alibaba.graphscope.common.client.RpcChannelFetcher;
 import com.alibaba.graphscope.common.config.PegasusConfig;
-import com.alibaba.graphscope.common.store.StoreConfigs;
+import com.alibaba.graphscope.common.store.IrMetaFetcher;
 import com.alibaba.graphscope.gremlin.service.IrGremlinServer;
 import com.alibaba.graphscope.groot.discovery.DiscoveryFactory;
 import com.alibaba.graphscope.groot.discovery.NodeDiscovery;
@@ -22,7 +22,6 @@ import com.alibaba.maxgraph.servers.gaia.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -48,38 +47,34 @@ public class IrServiceProducer implements ComputeServiceProducer {
     @Override
     public AbstractService makeGraphService(
             SchemaFetcher schemaFetcher, ChannelManager channelManager) {
-        try {
-            int executorCount = CommonConfig.STORE_NODE_COUNT.get(configs);
-            RpcChannelFetcher channelFetcher =
-                    new RpcChannelManagerFetcher(channelManager, executorCount, RoleType.GAIA_RPC);
-            com.alibaba.graphscope.common.config.Configs irConfigs = getConfigs();
-            StoreConfigs storeConfigs = new GrootStoreConfigs(configs);
-            logger.info("servers is {}", PegasusConfig.PEGASUS_SERVERS.get(irConfigs));
+        int executorCount = CommonConfig.STORE_NODE_COUNT.get(configs);
+        RpcChannelFetcher channelFetcher =
+                new RpcChannelManagerFetcher(channelManager, executorCount, RoleType.GAIA_RPC);
+        com.alibaba.graphscope.common.config.Configs irConfigs = getConfigs();
+        IrMetaFetcher irMetaFetcher = new GrootMetaFetcher(schemaFetcher);
+        logger.info("servers is {}", PegasusConfig.PEGASUS_SERVERS.get(irConfigs));
 
-            return new AbstractService() {
-                private IrGremlinServer irGremlinServer = new IrGremlinServer(GremlinConfig.GREMLIN_PORT.get(configs));
+        return new AbstractService() {
+            private IrGremlinServer irGremlinServer = new IrGremlinServer(GremlinConfig.GREMLIN_PORT.get(configs));
 
-                @Override
-                public void start() {
-                    try {
-                        irGremlinServer.start(irConfigs, storeConfigs, channelFetcher);
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
+            @Override
+            public void start() {
+                try {
+                    irGremlinServer.start(irConfigs, irMetaFetcher, channelFetcher);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
                 }
+            }
 
-                @Override
-                public void stop() {
-                    try {
-                        irGremlinServer.close();
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
+            @Override
+            public void stop() {
+                try {
+                    irGremlinServer.close();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
                 }
-            };
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+            }
+        };
     }
 
     @Override
