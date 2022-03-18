@@ -119,12 +119,7 @@ where
         }
 
         let conf_req = job_req.conf.take().unwrap();
-        let mut conf = parse_conf_req(conf_req);
-        // TODO: Pegasus bug here.
-        // By default, the server to run the job is local.
-        // Should make it configurable (in compiler) to define which servers the job will run on.
-        conf.reset_servers(ServerConf::Partial(vec![0, 1]));
-        info!("pegasus job configuration: {:?}", conf);
+        let conf = parse_conf_req(conf_req);
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
         let rpc_sink = RpcSink::new(conf.job_id, tx);
         let sink = ResultSink::<O>::with(rpc_sink);
