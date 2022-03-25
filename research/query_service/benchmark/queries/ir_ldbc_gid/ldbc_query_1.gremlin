@@ -1,1 +1,0 @@
-g.V($personId).both('1..4', 'KNOWS').as('p').inV().dedup().has('id', neq($personId)).has('firstName',eq('$firstName')).as('a').order().by(select('p').by('~len'), asc).by('lastName').by('id').limit(20).select('a', 'p').by().by('~len')
