@@ -35,7 +35,7 @@ pub struct RecordSinkEncoder {
     /// the given column tags to sink;
     sink_keys: Vec<Option<NameOrId>>,
     /// A map from id to name; including type of Entity (Vertex in Graph Database),
-    /// Relation (Edge in Graph Database) and Column (Property in Graph Database)
+    /// Relation (Edge in Graph Database), Column (Property in Graph Database), and Tag (Alias).
     schema_map: Option<HashMap<(MetaType, i32), String>>,
 }
 
@@ -93,19 +93,20 @@ impl RecordSinkEncoder {
         result_pb::Element { inner }
     }
 
-    fn label_to_pb(&self, label: NameOrId, t: MetaType) -> common_pb::NameOrId {
-        let mapped_label = if let Some(schema_map) = self.schema_map.as_ref() {
-            match label {
-                NameOrId::Str(_) => label,
-                NameOrId::Id(id) => {
-                    let str_label = schema_map.get(&(t, id)).unwrap();
-                    NameOrId::Str(str_label.clone())
+    fn meta_to_pb(&self, meta: NameOrId, t: MetaType) -> common_pb::NameOrId {
+        let mapped_meta = match meta {
+            NameOrId::Str(_) => meta,
+            NameOrId::Id(id) => {
+                let mut str_meta = meta;
+                if let Some(schema_map) = self.schema_map.as_ref() {
+                    if let Some(meta_name) = schema_map.get(&(t, id)) {
+                        str_meta = NameOrId::Str(meta_name.clone());
+                    }
                 }
+                str_meta
             }
-        } else {
-            label
         };
-        mapped_label.into()
+        mapped_meta.into()
     }
 
     fn vertex_to_pb(&self, v: &Vertex) -> result_pb::Vertex {
@@ -113,7 +114,7 @@ impl RecordSinkEncoder {
             id: v.id() as i64,
             label: v
                 .label()
-                .map(|label| self.label_to_pb(label.clone(), MetaType::Entity)),
+                .map(|label| self.meta_to_pb(label.clone(), MetaType::Entity)),
             // TODO: return detached vertex without property for now
             properties: vec![],
         }
@@ -124,15 +125,15 @@ impl RecordSinkEncoder {
             id: e.id() as i64,
             label: e
                 .label()
-                .map(|label| self.label_to_pb(label.clone(), MetaType::Relation)),
+                .map(|label| self.meta_to_pb(label.clone(), MetaType::Relation)),
             src_id: e.src_id as i64,
             src_label: e
                 .get_src_label()
-                .map(|label| self.label_to_pb(label.clone(), MetaType::Entity)),
+                .map(|label| self.meta_to_pb(label.clone(), MetaType::Entity)),
             dst_id: e.dst_id as i64,
             dst_label: e
                 .get_dst_label()
-                .map(|label| self.label_to_pb(label.clone(), MetaType::Entity)),
+                .map(|label| self.meta_to_pb(label.clone(), MetaType::Entity)),
             // TODO: return detached edge without property for now
             properties: vec![],
         }
@@ -182,7 +183,7 @@ impl MapFunction<Record, result_pb::Results> for RecordSinkEncoder {
                 let column_pb = result_pb::Column {
                     name_or_id: sink_key
                         .clone()
-                        .map(|sink_key| common_pb::NameOrId::from(sink_key.clone())),
+                        .map(|sink_key| self.meta_to_pb(sink_key, MetaType::Tag)),
                     entry: Some(entry_pb),
                 };
                 sink_columns.push(column_pb);
