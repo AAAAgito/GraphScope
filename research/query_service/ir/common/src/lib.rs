@@ -179,6 +179,15 @@ impl From<NameOrId> for common_pb::NameOrId {
     }
 }
 
+impl From<NameOrId> for Object {
+    fn from(tag: NameOrId) -> Self {
+        match tag {
+            NameOrId::Str(name) => Object::from(name),
+            NameOrId::Id(id) => Object::from(id),
+        }
+    }
+}
+
 impl From<common_pb::Arithmetic> for common_pb::ExprOpr {
     fn from(arith: common_pb::Arithmetic) -> Self {
         common_pb::ExprOpr {
