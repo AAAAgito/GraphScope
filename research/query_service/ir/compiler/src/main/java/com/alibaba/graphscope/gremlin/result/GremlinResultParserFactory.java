@@ -61,7 +61,7 @@ public enum GremlinResultParserFactory implements GremlinResultParser {
         @Override
         public Object parseFrom(IrResult.Results results) {
             IrResult.Record record = results.getRecord();
-            logger.info("{}", record);
+            logger.debug("{}", record);
             Map<String, Object> projectResult = new HashMap<>();
             record.getColumnsList()
                     .forEach(
