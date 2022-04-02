@@ -138,7 +138,7 @@ mod test {
     fn init_get_property_after_shuffle_request() -> JobRequest {
         let source_opr = pb::Scan {
             scan_opt: 0,
-            alias: Some("a".into()),
+            alias: Some(TAG_A.into()),
             params: Some(query_params_all_columns(vec![], vec![], None)),
             idx_predicate: None,
         };

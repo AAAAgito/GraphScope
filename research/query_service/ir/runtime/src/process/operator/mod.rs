@@ -215,6 +215,12 @@ pub(crate) mod tests {
     use crate::graph::property::{DefaultDetails, DynDetails};
     use crate::process::record::RecordElement;
 
+    pub const TAG_A: KeyId = 0;
+    pub const TAG_B: KeyId = 1;
+    pub const TAG_C: KeyId = 2;
+    pub const TAG_D: KeyId = 3;
+    pub const TAG_E: KeyId = 4;
+
     pub fn init_vertex1() -> Vertex {
         let map1: HashMap<NameOrId, Object> = vec![
             ("id".into(), object!(1)),
@@ -257,16 +263,16 @@ pub(crate) mod tests {
     pub fn init_source_with_tag() -> Vec<Record> {
         let v1 = init_vertex1();
         let v2 = init_vertex2();
-        let r1 = Record::new(v1, Some("a".into()));
-        let r2 = Record::new(v2, Some("a".into()));
+        let r1 = Record::new(v1, Some(TAG_A.into()));
+        let r2 = Record::new(v2, Some(TAG_A.into()));
         vec![r1, r2]
     }
 
     pub fn init_source_with_multi_tags() -> Vec<Record> {
         let v1 = init_vertex1();
         let v2 = init_vertex2();
-        let mut r1 = Record::new(v1, Some("a".into()));
-        r1.append(v2, Some("b".into()));
+        let mut r1 = Record::new(v1, Some(TAG_A.into()));
+        r1.append(v2, Some(TAG_B.into()));
         vec![r1]
     }
 

@@ -94,7 +94,7 @@ mod tests {
     use crate::graph::element::{Element, GraphElement, Vertex};
     use crate::graph::property::{DefaultDetails, Details, DynDetails};
     use crate::process::operator::sort::CompareFunctionGen;
-    use crate::process::operator::tests::{init_source, init_source_with_tag};
+    use crate::process::operator::tests::{init_source, init_source_with_tag, TAG_A};
     use crate::process::record::Record;
 
     fn sort_test(source: Vec<Record>, sort_opr: pb::OrderBy) -> ResultStream<Record> {
@@ -249,7 +249,7 @@ mod tests {
         let mut result_ids = vec![];
         while let Some(Ok(record)) = result.next() {
             if let Some(element) = record
-                .get(Some(&"a".into()))
+                .get(Some(&TAG_A.into()))
                 .unwrap()
                 .as_graph_vertex()
             {
@@ -274,7 +274,7 @@ mod tests {
         let mut result_ids = vec![];
         while let Some(Ok(record)) = result.next() {
             if let Some(element) = record
-                .get(Some(&"a".into()))
+                .get(Some(&TAG_A.into()))
                 .unwrap()
                 .as_graph_vertex()
             {

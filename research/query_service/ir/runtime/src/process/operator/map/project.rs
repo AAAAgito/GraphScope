@@ -161,7 +161,8 @@ mod tests {
     use crate::graph::property::{DefaultDetails, DynDetails};
     use crate::process::operator::map::MapFuncGen;
     use crate::process::operator::tests::{
-        init_source, init_source_with_multi_tags, init_source_with_tag, init_vertex1, init_vertex2,
+        init_source, init_source_with_multi_tags, init_source_with_tag, init_vertex1, init_vertex2, TAG_A,
+        TAG_B, TAG_C, TAG_D, TAG_E,
     };
     use crate::process::record::{CommonObject, Entry, Record, RecordElement};
 
@@ -212,7 +213,7 @@ mod tests {
         let project_opr_pb = pb::Project {
             mappings: vec![pb::project::ExprAlias {
                 expr: Some(str_to_expr_pb("@a.name".to_string()).unwrap()),
-                alias: Some("b".into()),
+                alias: Some(TAG_B.into()),
             }],
             is_append: false,
         };
@@ -220,9 +221,9 @@ mod tests {
 
         let mut object_result = vec![];
         while let Some(Ok(res)) = result.next() {
-            let a_entry = res.get(Some(&"a".into()));
+            let a_entry = res.get(Some(&TAG_A.into()));
             assert_eq!(a_entry, None);
-            match res.get(Some(&"b".into())).unwrap().as_ref() {
+            match res.get(Some(&TAG_B.into())).unwrap().as_ref() {
                 Entry::Element(RecordElement::OffGraph(CommonObject::Prop(val))) => {
                     object_result.push(val.clone());
                 }
@@ -264,11 +265,11 @@ mod tests {
             mappings: vec![
                 pb::project::ExprAlias {
                     expr: Some(str_to_expr_pb("@.age".to_string()).unwrap()),
-                    alias: Some(NameOrId::Str("b".to_string()).into()),
+                    alias: Some(TAG_B.into()),
                 },
                 pb::project::ExprAlias {
                     expr: Some(str_to_expr_pb("@.name".to_string()).unwrap()),
-                    alias: Some(NameOrId::Str("c".to_string()).into()),
+                    alias: Some(TAG_C.into()),
                 },
             ],
             is_append: false,
@@ -278,8 +279,8 @@ mod tests {
         while let Some(Ok(res)) = result.next() {
             // head should be None
             assert_eq!(res.get(None), None);
-            let age_val = res.get(Some(&"b".into())).unwrap();
-            let name_val = res.get(Some(&"c".into())).unwrap();
+            let age_val = res.get(Some(&TAG_B.into())).unwrap();
+            let name_val = res.get(Some(&TAG_C.into())).unwrap();
             match (age_val.as_ref(), name_val.as_ref()) {
                 (
                     Entry::Element(RecordElement::OffGraph(CommonObject::Prop(age))),
@@ -301,11 +302,11 @@ mod tests {
             mappings: vec![
                 pb::project::ExprAlias {
                     expr: Some(str_to_expr_pb("@a.age".to_string()).unwrap()),
-                    alias: Some(NameOrId::Str("b".to_string()).into()),
+                    alias: Some(TAG_B.into()),
                 },
                 pb::project::ExprAlias {
                     expr: Some(str_to_expr_pb("@a.name".to_string()).unwrap()),
-                    alias: Some(NameOrId::Str("c".to_string()).into()),
+                    alias: Some(TAG_C.into()),
                 },
             ],
             is_append: false,
@@ -314,8 +315,8 @@ mod tests {
 
         let mut object_result = vec![];
         while let Some(Ok(res)) = result.next() {
-            let age_val = res.get(Some(&"b".into())).unwrap();
-            let name_val = res.get(Some(&"c".into())).unwrap();
+            let age_val = res.get(Some(&TAG_B.into())).unwrap();
+            let name_val = res.get(Some(&TAG_C.into())).unwrap();
             match (age_val.as_ref(), name_val.as_ref()) {
                 (
                     Entry::Element(RecordElement::OffGraph(CommonObject::Prop(age))),
@@ -343,25 +344,25 @@ mod tests {
                 .into_iter()
                 .collect();
         let v3 = Vertex::new(3, Some("person".into()), DynDetails::new(DefaultDetails::new(map3)));
-        let mut r1 = Record::new(v1, Some("a".into()));
-        r1.append(v3.clone(), Some("b".into()));
-        let mut r2 = Record::new(v2, Some("a".into()));
-        r2.append(v3.clone(), Some("b".into()));
+        let mut r1 = Record::new(v1, Some(TAG_A.into()));
+        r1.append(v3.clone(), Some(TAG_B.into()));
+        let mut r2 = Record::new(v2, Some(TAG_A.into()));
+        r2.append(v3.clone(), Some(TAG_B.into()));
         let source = vec![r1, r2];
 
         let project_opr_pb = pb::Project {
             mappings: vec![
                 pb::project::ExprAlias {
                     expr: Some(str_to_expr_pb("@a.age".to_string()).unwrap()),
-                    alias: Some(NameOrId::Str("c".to_string()).into()),
+                    alias: Some(TAG_C.into()),
                 },
                 pb::project::ExprAlias {
                     expr: Some(str_to_expr_pb("@a.name".to_string()).unwrap()),
-                    alias: Some(NameOrId::Str("d".to_string()).into()),
+                    alias: Some(TAG_D.into()),
                 },
                 pb::project::ExprAlias {
                     expr: Some(str_to_expr_pb("@b.name".to_string()).unwrap()),
-                    alias: Some(NameOrId::Str("e".to_string()).into()),
+                    alias: Some(TAG_E.into()),
                 },
             ],
             is_append: false,
@@ -370,9 +371,9 @@ mod tests {
 
         let mut object_result = vec![];
         while let Some(Ok(res)) = result.next() {
-            let a_age_val = res.get(Some(&"c".into())).unwrap();
-            let a_name_val = res.get(Some(&"d".into())).unwrap();
-            let b_name_val = res.get(Some(&"e".into())).unwrap();
+            let a_age_val = res.get(Some(&TAG_C.into())).unwrap();
+            let a_name_val = res.get(Some(&TAG_D.into())).unwrap();
+            let b_name_val = res.get(Some(&TAG_E.into())).unwrap();
             match (a_age_val.as_ref(), a_name_val.as_ref(), b_name_val.as_ref()) {
                 (
                     Entry::Element(RecordElement::OffGraph(CommonObject::Prop(a_age))),
@@ -397,7 +398,7 @@ mod tests {
         let project_opr_pb = pb::Project {
             mappings: vec![pb::project::ExprAlias {
                 expr: Some(str_to_expr_pb("@a.age".to_string()).unwrap()),
-                alias: Some(NameOrId::Str("b".to_string()).into()),
+                alias: Some(TAG_B.into()),
             }],
             is_append: true,
         };
@@ -406,11 +407,11 @@ mod tests {
         let mut b_results = vec![];
         while let Some(Ok(res)) = result.next() {
             let v = res
-                .get(Some(&"a".into()))
+                .get(Some(&TAG_A.into()))
                 .unwrap()
                 .as_graph_vertex()
                 .unwrap();
-            let b_entry = res.get(Some(&"b".into())).unwrap().as_ref();
+            let b_entry = res.get(Some(&TAG_B.into())).unwrap().as_ref();
             match b_entry {
                 Entry::Element(RecordElement::OffGraph(CommonObject::Prop(val))) => {
                     a_results.push(v.id());
@@ -432,11 +433,11 @@ mod tests {
             mappings: vec![
                 pb::project::ExprAlias {
                     expr: Some(str_to_expr_pb("@.age".to_string()).unwrap()),
-                    alias: Some("b".into()),
+                    alias: Some(TAG_B.into()),
                 },
                 pb::project::ExprAlias {
                     expr: Some(str_to_expr_pb("@.name".to_string()).unwrap()),
-                    alias: Some("c".into()),
+                    alias: Some(TAG_C.into()),
                 },
             ],
             is_append: true,
@@ -444,8 +445,8 @@ mod tests {
         let mut result = project_test(init_source(), project_opr_pb);
         let mut object_result = vec![];
         while let Some(Ok(res)) = result.next() {
-            let age_val = res.get(Some(&"b".into())).unwrap();
-            let name_val = res.get(Some(&"c".into())).unwrap();
+            let age_val = res.get(Some(&TAG_B.into())).unwrap();
+            let name_val = res.get(Some(&TAG_C.into())).unwrap();
             match (age_val.as_ref(), name_val.as_ref()) {
                 (
                     Entry::Element(RecordElement::OffGraph(CommonObject::Prop(age))),
@@ -605,11 +606,11 @@ mod tests {
             mappings: vec![
                 pb::project::ExprAlias {
                     expr: Some(str_to_expr_pb("@a".to_string()).unwrap()),
-                    alias: Some(NameOrId::Str("a_col".to_string()).into()),
+                    alias: Some(TAG_B.into()),
                 },
                 pb::project::ExprAlias {
                     expr: Some(str_to_expr_pb("@b".to_string()).unwrap()),
-                    alias: Some(NameOrId::Str("b_col".to_string()).into()),
+                    alias: Some(TAG_C.into()),
                 },
             ],
             is_append: true,
@@ -617,8 +618,8 @@ mod tests {
         let mut result = project_test(init_source_with_multi_tags(), project_opr_pb);
         let mut results = vec![];
         while let Some(Ok(res)) = result.next() {
-            let a_entry = res.get(Some(&"a_col".into())).unwrap().as_ref();
-            let b_entry = res.get(Some(&"b_col".into())).unwrap().as_ref();
+            let a_entry = res.get(Some(&TAG_B.into())).unwrap().as_ref();
+            let b_entry = res.get(Some(&TAG_C.into())).unwrap().as_ref();
             let v1 = a_entry.as_graph_vertex().unwrap();
             let v2 = b_entry.as_graph_vertex().unwrap();
             results.push(v1.id());

@@ -28,7 +28,7 @@ pub mod test {
     use ir_common::generated::algebra as pb;
     use ir_common::generated::common as common_pb;
     use ir_common::generated::results as result_pb;
-    use ir_common::NameOrId;
+    use ir_common::{KeyId, NameOrId};
     use lazy_static::lazy_static;
     use pegasus::result::{ResultSink, ResultStream};
     use pegasus::{run_opt, Configuration, JobConf, StartupError};
@@ -39,6 +39,10 @@ pub mod test {
     use runtime::graph::ID;
     use runtime::process::record::{Entry, Record, RecordElement};
     use runtime::IRJobCompiler;
+
+    pub const TAG_A: KeyId = 0;
+    pub const TAG_B: KeyId = 1;
+    pub const TAG_C: KeyId = 2;
 
     static INIT: Once = Once::new();
 
@@ -88,13 +92,30 @@ pub mod test {
         if let Some(result_pb::results::Inner::Record(record_pb)) = result.inner {
             let mut record = Record::default();
             for column in record_pb.columns {
-                let tag: Option<NameOrId> =
-                    if let Some(tag) = column.name_or_id { Some(tag.try_into().unwrap()) } else { None };
+                let tag: Option<KeyId> = if let Some(tag) = column.name_or_id {
+                    match tag.item.unwrap() {
+                        common_pb::name_or_id::Item::Name(name) => {
+                            if name.eq("a") {
+                                Some(TAG_A)
+                            } else if name.eq("b") {
+                                Some(TAG_B)
+                            } else if name.eq("c") {
+                                Some(TAG_C)
+                            } else {
+                                // More tags...
+                                Some(100)
+                            }
+                        }
+                        common_pb::name_or_id::Item::Id(id) => Some(id),
+                    }
+                } else {
+                    None
+                };
                 let entry = column.entry.unwrap();
                 // append entry without moving head
                 if let Some(tag) = tag {
                     let columns = record.get_columns_mut();
-                    columns.insert(tag.clone(), Arc::new(Entry::try_from(entry).unwrap()));
+                    columns.insert(tag as usize, Arc::new(Entry::try_from(entry).unwrap()));
                 } else {
                     record.append(Entry::try_from(entry).unwrap(), None);
                 }
