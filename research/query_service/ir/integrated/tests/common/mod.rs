@@ -94,18 +94,10 @@ pub mod test {
             for column in record_pb.columns {
                 let tag: Option<KeyId> = if let Some(tag) = column.name_or_id {
                     match tag.item.unwrap() {
-                        common_pb::name_or_id::Item::Name(name) => {
-                            if name.eq("a") {
-                                Some(TAG_A)
-                            } else if name.eq("b") {
-                                Some(TAG_B)
-                            } else if name.eq("c") {
-                                Some(TAG_C)
-                            } else {
-                                // More tags...
-                                Some(100)
-                            }
-                        }
+                        common_pb::name_or_id::Item::Name(name) => Some(
+                            name.parse::<KeyId>()
+                                .unwrap_or(KeyId::max_value()),
+                        ),
                         common_pb::name_or_id::Item::Id(id) => Some(id),
                     }
                 } else {
@@ -151,6 +143,53 @@ pub mod test {
             limit: None,
             predicate,
             extra: HashMap::new(),
+        }
+    }
+
+    pub fn to_var_pb(tag: Option<NameOrId>, key: Option<NameOrId>) -> common_pb::Variable {
+        common_pb::Variable {
+            tag: tag.map(|t| t.into()),
+            property: key
+                .map(|k| common_pb::Property { item: Some(common_pb::property::Item::Key(k.into())) }),
+        }
+    }
+
+    pub fn to_expr_var_pb(tag: Option<NameOrId>, key: Option<NameOrId>) -> common_pb::Expression {
+        common_pb::Expression {
+            operators: vec![common_pb::ExprOpr {
+                item: Some(common_pb::expr_opr::Item::Var(to_var_pb(tag, key))),
+            }],
+        }
+    }
+
+    pub fn to_expr_var_all_prop_pb(tag: Option<NameOrId>) -> common_pb::Expression {
+        common_pb::Expression {
+            operators: vec![common_pb::ExprOpr {
+                item: Some(common_pb::expr_opr::Item::Var(common_pb::Variable {
+                    tag: tag.map(|t| t.into()),
+                    property: Some(common_pb::Property {
+                        item: Some(common_pb::property::Item::All(common_pb::AllKey {})),
+                    }),
+                })),
+            }],
+        }
+    }
+
+    pub fn to_expr_vars_pb(
+        tag_keys: Vec<(Option<NameOrId>, Option<NameOrId>)>, is_map: bool,
+    ) -> common_pb::Expression {
+        let vars = tag_keys
+            .into_iter()
+            .map(|(tag, key)| to_var_pb(tag, key))
+            .collect();
+        common_pb::Expression {
+            operators: vec![common_pb::ExprOpr {
+                item: if is_map {
+                    Some(common_pb::expr_opr::Item::VarMap(common_pb::VariableKeys { keys: vars }))
+                } else {
+                    Some(common_pb::expr_opr::Item::Vars(common_pb::VariableKeys { keys: vars }))
+                },
+            }],
         }
     }
 }

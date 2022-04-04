@@ -102,7 +102,7 @@ impl MapFunction<Record, Record> for ProjectOperator {
                         //     .get_or_insert_tag_id(alias.clone())
                         //     .ok_or(FnExecError::get_tag_error("get tag id failed"))?;
                         // columns.insert(alias_id as usize, entry);
-                        input.append_arc_entry_without_moving_head(entry.clone(), Some(alias.clone()));
+                        new_record.append_arc_entry_without_moving_head(entry.clone(), Some(alias.clone()));
                     }
                 }
             }
@@ -161,8 +161,8 @@ mod tests {
     use crate::graph::property::{DefaultDetails, DynDetails};
     use crate::process::operator::map::MapFuncGen;
     use crate::process::operator::tests::{
-        init_source, init_source_with_multi_tags, init_source_with_tag, init_vertex1, init_vertex2, TAG_A,
-        TAG_B, TAG_C, TAG_D, TAG_E,
+        init_source, init_source_with_multi_tags, init_source_with_tag, init_vertex1, init_vertex2,
+        to_expr_var_pb, to_expr_vars_pb, TAG_A, TAG_B, TAG_C, TAG_D, TAG_E,
     };
     use crate::process::record::{CommonObject, Entry, Record, RecordElement};
 
@@ -212,7 +212,7 @@ mod tests {
     fn project_tag_single_mapping_test() {
         let project_opr_pb = pb::Project {
             mappings: vec![pb::project::ExprAlias {
-                expr: Some(str_to_expr_pb("@a.name".to_string()).unwrap()),
+                expr: Some(to_expr_var_pb(Some(TAG_A.into()), Some("name".into()))),
                 alias: Some(TAG_B.into()),
             }],
             is_append: false,
@@ -301,11 +301,11 @@ mod tests {
         let project_opr_pb = pb::Project {
             mappings: vec![
                 pb::project::ExprAlias {
-                    expr: Some(str_to_expr_pb("@a.age".to_string()).unwrap()),
+                    expr: Some(to_expr_var_pb(Some(TAG_A.into()), Some("age".into()))),
                     alias: Some(TAG_B.into()),
                 },
                 pb::project::ExprAlias {
-                    expr: Some(str_to_expr_pb("@a.name".to_string()).unwrap()),
+                    expr: Some(to_expr_var_pb(Some(TAG_A.into()), Some("name".into()))),
                     alias: Some(TAG_C.into()),
                 },
             ],
@@ -353,15 +353,15 @@ mod tests {
         let project_opr_pb = pb::Project {
             mappings: vec![
                 pb::project::ExprAlias {
-                    expr: Some(str_to_expr_pb("@a.age".to_string()).unwrap()),
+                    expr: Some(to_expr_var_pb(Some(TAG_A.into()), Some("age".into()))),
                     alias: Some(TAG_C.into()),
                 },
                 pb::project::ExprAlias {
-                    expr: Some(str_to_expr_pb("@a.name".to_string()).unwrap()),
+                    expr: Some(to_expr_var_pb(Some(TAG_A.into()), Some("name".into()))),
                     alias: Some(TAG_D.into()),
                 },
                 pb::project::ExprAlias {
-                    expr: Some(str_to_expr_pb("@b.name".to_string()).unwrap()),
+                    expr: Some(to_expr_var_pb(Some(TAG_B.into()), Some("name".into()))),
                     alias: Some(TAG_E.into()),
                 },
             ],
@@ -397,7 +397,7 @@ mod tests {
     fn project_single_mapping_appended_test() {
         let project_opr_pb = pb::Project {
             mappings: vec![pb::project::ExprAlias {
-                expr: Some(str_to_expr_pb("@a.age".to_string()).unwrap()),
+                expr: Some(to_expr_var_pb(Some(TAG_A.into()), Some("age".into()))),
                 alias: Some(TAG_B.into()),
             }],
             is_append: true,
@@ -563,7 +563,13 @@ mod tests {
     fn project_tag_map_mapping_test() {
         let project_opr_pb = pb::Project {
             mappings: vec![pb::project::ExprAlias {
-                expr: Some(str_to_expr_pb("{@a.age,@a.name}".to_string()).unwrap()),
+                expr: Some(to_expr_vars_pb(
+                    vec![
+                        (Some(TAG_A.into()), Some("age".into())),
+                        (Some(TAG_A.into()), Some("name".into())),
+                    ],
+                    true,
+                )),
                 alias: None,
             }],
             is_append: false,
@@ -582,16 +588,16 @@ mod tests {
         let expected_result = vec![
             Object::KV(
                 vec![
-                    (object!(vec![object!("a"), object!("age")]), object!(29)),
-                    (object!(vec![object!("a"), object!("name")]), object!("marko")),
+                    (object!(vec![object!(TAG_A), object!("age")]), object!(29)),
+                    (object!(vec![object!(TAG_A), object!("name")]), object!("marko")),
                 ]
                 .into_iter()
                 .collect(),
             ),
             Object::KV(
                 vec![
-                    (object!(vec![object!("a"), object!("age")]), object!(27)),
-                    (object!(vec![object!("a"), object!("name")]), object!("vadas")),
+                    (object!(vec![object!(TAG_A), object!("age")]), object!(27)),
+                    (object!(vec![object!(TAG_A), object!("name")]), object!("vadas")),
                 ]
                 .into_iter()
                 .collect(),
@@ -605,12 +611,12 @@ mod tests {
         let project_opr_pb = pb::Project {
             mappings: vec![
                 pb::project::ExprAlias {
-                    expr: Some(str_to_expr_pb("@a".to_string()).unwrap()),
-                    alias: Some(TAG_B.into()),
+                    expr: Some(to_expr_var_pb(Some(TAG_A.into()), None)),
+                    alias: Some(TAG_C.into()),
                 },
                 pb::project::ExprAlias {
-                    expr: Some(str_to_expr_pb("@b".to_string()).unwrap()),
-                    alias: Some(TAG_C.into()),
+                    expr: Some(to_expr_var_pb(Some(TAG_B.into()), None)),
+                    alias: Some(TAG_D.into()),
                 },
             ],
             is_append: true,
@@ -618,8 +624,8 @@ mod tests {
         let mut result = project_test(init_source_with_multi_tags(), project_opr_pb);
         let mut results = vec![];
         while let Some(Ok(res)) = result.next() {
-            let a_entry = res.get(Some(&TAG_B.into())).unwrap().as_ref();
-            let b_entry = res.get(Some(&TAG_C.into())).unwrap().as_ref();
+            let a_entry = res.get(Some(&TAG_C.into())).unwrap().as_ref();
+            let b_entry = res.get(Some(&TAG_D.into())).unwrap().as_ref();
             let v1 = a_entry.as_graph_vertex().unwrap();
             let v2 = b_entry.as_graph_vertex().unwrap();
             results.push(v1.id());

@@ -153,7 +153,7 @@ mod test {
 
         let project_opr = pb::Project {
             mappings: vec![pb::project::ExprAlias {
-                expr: Some(str_to_expr_pb("@a.~all".to_string()).unwrap()),
+                expr: Some(to_expr_var_all_prop_pb(Some(TAG_A.into()))),
                 alias: None,
             }],
             is_append: true,

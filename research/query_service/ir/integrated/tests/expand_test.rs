@@ -251,7 +251,7 @@ mod test {
         let query_param = query_params(vec!["knows".into()], vec![], None);
         let project = pb::Project {
             mappings: vec![pb::project::ExprAlias {
-                expr: str_to_expr_pb("@a".to_string()).ok(),
+                expr: Some(to_expr_var_pb(Some(TAG_A.into()), None)),
                 alias: None,
             }],
             is_append: false,

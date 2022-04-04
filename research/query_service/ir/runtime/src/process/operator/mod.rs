@@ -276,6 +276,40 @@ pub(crate) mod tests {
         vec![r1]
     }
 
+    pub fn to_var_pb(tag: Option<NameOrId>, key: Option<NameOrId>) -> common_pb::Variable {
+        common_pb::Variable {
+            tag: tag.map(|t| t.into()),
+            property: key
+                .map(|k| common_pb::Property { item: Some(common_pb::property::Item::Key(k.into())) }),
+        }
+    }
+
+    pub fn to_expr_var_pb(tag: Option<NameOrId>, key: Option<NameOrId>) -> common_pb::Expression {
+        common_pb::Expression {
+            operators: vec![common_pb::ExprOpr {
+                item: Some(common_pb::expr_opr::Item::Var(to_var_pb(tag, key))),
+            }],
+        }
+    }
+
+    pub fn to_expr_vars_pb(
+        tag_keys: Vec<(Option<NameOrId>, Option<NameOrId>)>, is_map: bool,
+    ) -> common_pb::Expression {
+        let vars = tag_keys
+            .into_iter()
+            .map(|(tag, key)| to_var_pb(tag, key))
+            .collect();
+        common_pb::Expression {
+            operators: vec![common_pb::ExprOpr {
+                item: if is_map {
+                    Some(common_pb::expr_opr::Item::VarMap(common_pb::VariableKeys { keys: vars }))
+                } else {
+                    Some(common_pb::expr_opr::Item::Vars(common_pb::VariableKeys { keys: vars }))
+                },
+            }],
+        }
+    }
+
     #[test]
     // None tag refers to the last appended entry;
     fn test_get_none_tag_entry() {
