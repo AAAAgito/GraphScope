@@ -16,7 +16,7 @@
 use std::convert::TryInto;
 
 use ir_common::generated::algebra as algebra_pb;
-use ir_common::NameOrId;
+use ir_common::KeyId;
 use pegasus::api::function::{FnResult, MapFunction};
 use pegasus_server::pb as server_pb;
 
@@ -60,7 +60,7 @@ impl FoldGen<u64, Record> for algebra_pb::GroupBy {
 
 #[derive(Debug)]
 struct CountAlias {
-    alias: Option<NameOrId>,
+    alias: Option<KeyId>,
 }
 
 impl MapFunction<u64, Record> for CountAlias {

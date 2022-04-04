@@ -19,7 +19,7 @@ use std::convert::{TryFrom, TryInto};
 use ir_common::error::ParsePbError;
 use ir_common::generated::algebra as algebra_pb;
 use ir_common::generated::algebra::group_by::agg_func::Aggregate;
-use ir_common::NameOrId;
+use ir_common::KeyId;
 use pegasus::codec::{Decode, Encode, ReadExt, WriteExt};
 
 use crate::error::{FnExecError, FnExecResult, FnGenError, FnGenResult};
@@ -43,7 +43,7 @@ pub enum EntryAccumulator {
 
 #[derive(Debug, Clone)]
 pub struct RecordAccumulator {
-    accum_ops: Vec<(EntryAccumulator, TagKey, NameOrId)>,
+    accum_ops: Vec<(EntryAccumulator, TagKey, KeyId)>,
 }
 
 impl Accumulator<Record, Record> for RecordAccumulator {
@@ -253,7 +253,7 @@ impl Decode for RecordAccumulator {
         for _ in 0..len {
             let accumulator = <EntryAccumulator>::read_from(reader)?;
             let tag_key = <TagKey>::read_from(reader)?;
-            let alias = <NameOrId>::read_from(reader)?;
+            let alias = <KeyId>::read_from(reader)?;
             accum_ops.push((accumulator, tag_key, alias));
         }
         Ok(RecordAccumulator { accum_ops })

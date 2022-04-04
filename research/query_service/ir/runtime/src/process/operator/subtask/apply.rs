@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 use ir_common::generated::algebra as algebra_pb;
 use ir_common::generated::algebra::join::JoinKind;
-use ir_common::NameOrId;
+use ir_common::KeyId;
 use pegasus::api::function::{BinaryFunction, FnResult};
 
 use crate::error::{FnExecError, FnGenError, FnGenResult};
@@ -28,7 +28,7 @@ use crate::process::record::{CommonObject, Entry, Record};
 #[derive(Debug)]
 struct ApplyOperator {
     join_kind: JoinKind,
-    alias: Option<NameOrId>,
+    alias: Option<KeyId>,
 }
 
 impl BinaryFunction<Record, Vec<Record>, Option<Record>> for ApplyOperator {
@@ -45,12 +45,8 @@ impl BinaryFunction<Record, Vec<Record>, Option<Record>> for ApplyOperator {
                         .ok_or(FnExecError::get_tag_error("get entry of subtask result failed"))?;
                     if let Some(alias) = self.alias.as_ref() {
                         // append sub_entry without moving head
-                        // let columns = parent.get_columns_mut();
-                        // let alias_id = parent
-                        //     .get_or_insert_tag_id(alias.clone())
-                        //     .ok_or(FnExecError::get_tag_error("get tag id failed"))?;
-                        // columns.insert(alias_id as usize, sub_entry.clone());
-                        parent.append_arc_entry_without_moving_head(sub_entry.clone(), Some(alias.clone()));
+                        let columns = parent.get_columns_mut();
+                        columns.insert(*alias as usize, sub_entry.clone());
                     } else {
                         parent.append_arc_entry(sub_entry.clone(), None);
                     }
@@ -61,12 +57,8 @@ impl BinaryFunction<Record, Vec<Record>, Option<Record>> for ApplyOperator {
                 if sub.is_empty() {
                     let entry: Arc<Entry> = Arc::new((CommonObject::None).into());
                     if let Some(alias) = self.alias.as_ref() {
-                        // let columns = parent.get_columns_mut();
-                        // let alias_id = parent
-                        //     .get_or_insert_tag_id(alias.clone())
-                        //     .ok_or(FnExecError::get_tag_error("get tag id failed"))?;
-                        // columns.insert(alias_id as usize, entry.clone());
-                        parent.append_arc_entry_without_moving_head(entry.clone(), Some(alias.clone()));
+                        let columns = parent.get_columns_mut();
+                        columns.insert(*alias as usize, entry.clone());
                     } else {
                         parent.append_arc_entry(entry.clone(), None);
                     }
@@ -78,12 +70,8 @@ impl BinaryFunction<Record, Vec<Record>, Option<Record>> for ApplyOperator {
                         .get(None)
                         .ok_or(FnExecError::get_tag_error("get entry of subtask result failed"))?;
                     if let Some(alias) = self.alias.as_ref() {
-                        // let columns = parent.get_columns_mut();
-                        // let alias_id = parent
-                        //     .get_or_insert_tag_id(alias.clone())
-                        //     .ok_or(FnExecError::get_tag_error("get tag id failed"))?;
-                        // columns.insert(alias_id as usize, sub_entry.clone());
-                        parent.append_arc_entry_without_moving_head(sub_entry.clone(), Some(alias.clone()));
+                        let columns = parent.get_columns_mut();
+                        columns.insert(*alias as usize, sub_entry.clone());
                     } else {
                         parent.append_arc_entry(sub_entry.clone(), None);
                     }
@@ -110,7 +98,7 @@ impl ApplyGen<Record, Vec<Record>, Option<Record>> for algebra_pb::Apply {
         let alias = self
             .alias
             .as_ref()
-            .map(|tag_pb| NameOrId::try_from(tag_pb.clone()))
+            .map(|tag_pb| KeyId::try_from(tag_pb.clone()))
             .transpose()?;
         match join_kind {
             JoinKind::Inner | JoinKind::LeftOuter | JoinKind::Semi | JoinKind::Anti => {}

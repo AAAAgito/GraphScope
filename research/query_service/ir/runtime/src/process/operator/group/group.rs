@@ -17,7 +17,7 @@ use std::convert::TryInto;
 
 use ir_common::error::ParsePbError;
 use ir_common::generated::algebra as algebra_pb;
-use ir_common::NameOrId;
+use ir_common::KeyId;
 use pegasus::api::function::{FnResult, MapFunction};
 
 use crate::error::{FnExecError, FnGenResult};
@@ -38,7 +38,7 @@ impl GroupGen<Record, RecordKey, Record> for algebra_pb::GroupBy {
     fn gen_group_map(&self) -> FnGenResult<Box<dyn MapFunction<(RecordKey, Record), Record>>> {
         let mut key_aliases = Vec::with_capacity(self.mappings.len());
         for key_alias in self.mappings.iter() {
-            let alias: Option<NameOrId> = Some(
+            let alias: Option<KeyId> = Some(
                 key_alias
                     .alias
                     .clone()
@@ -57,7 +57,7 @@ impl GroupGen<Record, RecordKey, Record> for algebra_pb::GroupBy {
 #[derive(Debug)]
 struct GroupMap {
     /// aliases for group keys, if some key is not not required to be preserved, give None alias
-    key_aliases: Vec<NameOrId>,
+    key_aliases: Vec<KeyId>,
 }
 
 impl MapFunction<(RecordKey, Record), Record> for GroupMap {

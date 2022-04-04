@@ -20,7 +20,7 @@ use dyn_type::Object;
 use ir_common::error::ParsePbError;
 use ir_common::generated::algebra as algebra_pb;
 use ir_common::generated::common as common_pb;
-use ir_common::NameOrId;
+use ir_common::KeyId;
 use pegasus::api::function::{FnResult, MapFunction};
 
 use crate::error::{FnExecError, FnGenResult};
@@ -32,7 +32,7 @@ use crate::process::record::{CommonObject, Entry, Record, RecordElement};
 #[derive(Debug)]
 struct ProjectOperator {
     is_append: bool,
-    projected_columns: Vec<(Projector, Option<NameOrId>)>,
+    projected_columns: Vec<(Projector, Option<KeyId>)>,
 }
 
 #[derive(Debug)]
@@ -72,12 +72,8 @@ impl MapFunction<Record, Record> for ProjectOperator {
                     let entry = exec_projector(&input, projector)?;
                     // Notice that if multiple columns, alias cannot be None
                     if let Some(alias) = alias {
-                        // let columns = input.get_columns_mut();
-                        // let alias_id = input
-                        //     .get_or_insert_tag_id(alias.clone())
-                        //     .ok_or(FnExecError::get_tag_error("get tag id failed"))?;
-                        // columns.insert(alias_id as usize, entry);
-                        input.append_arc_entry_without_moving_head(entry.clone(), Some(alias.clone()));
+                        let columns = input.get_columns_mut();
+                        columns.insert(*alias as usize, entry);
                     }
                 }
                 // set head as None when the last column is appended
@@ -97,12 +93,8 @@ impl MapFunction<Record, Record> for ProjectOperator {
                     let entry = exec_projector(&input, &projector)?;
                     // Notice that if multiple columns, alias cannot be None
                     if let Some(alias) = alias {
-                        // let columns = new_record.get_columns_mut();
-                        // let alias_id = input
-                        //     .get_or_insert_tag_id(alias.clone())
-                        //     .ok_or(FnExecError::get_tag_error("get tag id failed"))?;
-                        // columns.insert(alias_id as usize, entry);
-                        new_record.append_arc_entry_without_moving_head(entry.clone(), Some(alias.clone()));
+                        let columns = new_record.get_columns_mut();
+                        columns.insert(*alias as usize, entry);
                     }
                 }
             }

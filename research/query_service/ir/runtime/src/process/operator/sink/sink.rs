@@ -34,7 +34,7 @@ use crate::process::record::{CommonObject, Entry, Record, RecordElement};
 #[derive(Debug)]
 pub struct RecordSinkEncoder {
     /// the given column tags to sink;
-    sink_keys: Vec<Option<NameOrId>>,
+    sink_keys: Vec<Option<KeyId>>,
     /// A map from id to name; including type of Entity (Vertex in Graph Database),
     /// Relation (Edge in Graph Database), Column (Property in Graph Database), and Tag (Alias).
     schema_map: Option<HashMap<(MetaType, i32), String>>,
@@ -215,7 +215,7 @@ impl MapFunction<Record, result_pb::Results> for RecordSinkEncoder {
                 let column_pb = result_pb::Column {
                     name_or_id: sink_key
                         .clone()
-                        .map(|sink_key| self.meta_to_pb(sink_key, MetaType::Tag)),
+                        .map(|sink_key| self.meta_to_pb(NameOrId::Id(sink_key), MetaType::Tag)),
                     entry: Some(entry_pb),
                 };
                 sink_columns.push(column_pb);

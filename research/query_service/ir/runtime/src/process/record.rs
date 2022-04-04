@@ -30,8 +30,6 @@ use crate::expr::eval::Context;
 use crate::graph::element::{Edge, Element, GraphElement, GraphObject, GraphPath, Vertex, VertexOrEdge};
 use crate::graph::property::DynDetails;
 
-const INVALID_TAG_ID: KeyId = KeyId::max_value();
-
 #[derive(Debug, Clone, Hash, PartialEq, PartialOrd)]
 pub enum CommonObject {
     // TODO: common-used object elements
@@ -119,43 +117,29 @@ impl Entry {
 #[derive(Debug, Clone, Default)]
 pub struct Record {
     curr: Option<Arc<Entry>>,
-    // tags_mapping: IndexMap<String, KeyId>,
     columns: VecMap<Arc<Entry>>,
 }
 
 impl Record {
-    pub fn new<E: Into<Entry>>(entry: E, tag: Option<NameOrId>) -> Self {
+    pub fn new<E: Into<Entry>>(entry: E, tag: Option<KeyId>) -> Self {
         let entry = Arc::new(entry.into());
         let mut columns = VecMap::new();
         if let Some(tag) = tag {
-            let tag_id = match tag {
-                NameOrId::Str(_name) => INVALID_TAG_ID,
-                NameOrId::Id(id) => id,
-            };
-            columns.insert(tag_id as usize, entry.clone());
+            columns.insert(tag as usize, entry.clone());
         }
         Record { curr: Some(entry), columns }
     }
 
     // TODO: consider to maintain the record without any alias, which also needed to be stored;
     // We may: 1. define a None type in NameOrId; or 2. define different Record types, for the gremlin path requirement
-    pub fn append<E: Into<Entry>>(&mut self, entry: E, alias: Option<NameOrId>) {
+    pub fn append<E: Into<Entry>>(&mut self, entry: E, alias: Option<KeyId>) {
         self.append_arc_entry(Arc::new(entry.into()), alias)
     }
 
-    pub fn append_arc_entry(&mut self, entry: Arc<Entry>, alias: Option<NameOrId>) {
+    pub fn append_arc_entry(&mut self, entry: Arc<Entry>, alias: Option<KeyId>) {
         self.curr = Some(entry.clone());
         if let Some(alias) = alias {
-            let alias_id = self.get_or_insert_tag_id(alias);
-            self.columns.insert(alias_id as usize, entry);
-        }
-    }
-
-    // for test only
-    pub fn append_arc_entry_without_moving_head(&mut self, entry: Arc<Entry>, alias: Option<NameOrId>) {
-        if let Some(alias) = alias {
-            let alias_id = self.get_or_insert_tag_id(alias);
-            self.columns.insert(alias_id as usize, entry);
+            self.columns.insert(alias as usize, entry);
         }
     }
 
@@ -167,13 +151,9 @@ impl Record {
         self.columns.borrow_mut()
     }
 
-    pub fn get(&self, tag: Option<&NameOrId>) -> Option<&Arc<Entry>> {
+    pub fn get(&self, tag: Option<&KeyId>) -> Option<&Arc<Entry>> {
         if let Some(tag) = tag {
-            if let Some(tag_id) = self.get_tag_id(tag.clone()) {
-                self.columns.get(tag_id as usize)
-            } else {
-                None
-            }
+            self.columns.get(*tag as usize)
         } else {
             self.curr.as_ref()
         }
@@ -196,20 +176,6 @@ impl Record {
         };
 
         self
-    }
-
-    pub fn get_or_insert_tag_id(&mut self, tag: NameOrId) -> KeyId {
-        match tag {
-            NameOrId::Str(_name) => INVALID_TAG_ID,
-            NameOrId::Id(id) => id,
-        }
-    }
-
-    pub fn get_tag_id(&self, tag: NameOrId) -> Option<KeyId> {
-        match tag {
-            NameOrId::Str(_name) => None,
-            NameOrId::Id(id) => Some(id),
-        }
     }
 }
 
@@ -268,6 +234,14 @@ impl Into<Entry> for RecordElement {
 
 impl Context<RecordElement> for Record {
     fn get(&self, tag: Option<&NameOrId>) -> Option<&RecordElement> {
+        let tag = if let Some(tag) = tag {
+            match tag {
+                NameOrId::Str(_) => None,
+                NameOrId::Id(id) => Some(id),
+            }
+        } else {
+            None
+        };
         self.get(tag)
             .map(|entry| match entry.as_ref() {
                 Entry::Element(element) => Some(element),
@@ -335,13 +309,13 @@ impl Eq for RecordKey {}
 impl Eq for Entry {}
 
 pub struct RecordExpandIter<E> {
-    tag: Option<NameOrId>,
+    tag: Option<KeyId>,
     origin: Record,
     children: DynIter<E>,
 }
 
 impl<E> RecordExpandIter<E> {
-    pub fn new(origin: Record, tag: Option<&NameOrId>, children: DynIter<E>) -> Self {
+    pub fn new(origin: Record, tag: Option<&KeyId>, children: DynIter<E>) -> Self {
         RecordExpandIter { tag: tag.map(|e| e.clone()), origin, children }
     }
 }

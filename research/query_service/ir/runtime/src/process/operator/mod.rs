@@ -32,7 +32,7 @@ use std::sync::Arc;
 use dyn_type::Object;
 use ir_common::error::ParsePbError;
 use ir_common::generated::common as common_pb;
-use ir_common::NameOrId;
+use ir_common::{KeyId, NameOrId};
 use pegasus::codec::{Decode, Encode, ReadExt, WriteExt};
 
 use crate::error::FnExecError;
@@ -42,7 +42,7 @@ use crate::process::record::{CommonObject, Entry, Record, RecordElement};
 
 #[derive(Clone, Debug, Default)]
 pub struct TagKey {
-    tag: Option<NameOrId>,
+    tag: Option<KeyId>,
     key: Option<PropKey>,
 }
 
@@ -150,7 +150,7 @@ impl TryFrom<common_pb::Variable> for TagKey {
     type Error = ParsePbError;
 
     fn try_from(v: common_pb::Variable) -> Result<Self, Self::Error> {
-        let tag = if let Some(tag) = v.tag { Some(NameOrId::try_from(tag)?) } else { None };
+        let tag = if let Some(tag) = v.tag { Some(KeyId::try_from(tag)?) } else { None };
         let prop = if let Some(prop) = v.property { Some(PropKey::try_from(prop)?) } else { None };
         Ok(TagKey { tag, key: prop })
     }
@@ -185,12 +185,12 @@ impl Decode for TagKey {
         let opt = reader.read_u8()?;
         match opt {
             0 => {
-                let tag = <NameOrId>::read_from(reader)?;
+                let tag = <KeyId>::read_from(reader)?;
                 let key = <PropKey>::read_from(reader)?;
                 Ok(TagKey { tag: Some(tag), key: Some(key) })
             }
             1 => {
-                let tag = <NameOrId>::read_from(reader)?;
+                let tag = <KeyId>::read_from(reader)?;
                 Ok(TagKey { tag: Some(tag), key: None })
             }
             2 => {
