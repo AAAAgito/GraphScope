@@ -26,9 +26,11 @@ and the vineyard store that offers efficient in-memory data transfers.
    deployment
    loading_graph
    graph_transformation
-   interactive_engine
    analytics_engine
+   interactive_engine
    learning_engine
+   persistent_graph_store
+   frequently_asked_questions
    developer_guide
 
 .. toctree::
@@ -37,6 +39,7 @@ and the vineyard store that offers efficient in-memory data transfers.
 
    reference/python_index
    reference/analytical_engine_index
+   Analytical Engine Java API Reference <reference/gae_java/index>
 
 .. toctree::
    :maxdepth: 2

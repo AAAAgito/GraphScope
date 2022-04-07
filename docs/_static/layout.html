@@ -7,6 +7,32 @@ This template exists as a way to implement a language menu just as what
 
 #}
 
+{%- block extrahead %}
+
+{{ super() }}
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-4TMYCGJ0X2"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-4TMYCGJ0X2');
+</script>
+
+<script>
+  var _hmt = _hmt || [];
+  (function() {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?da649ade2298891886e31922dfc8870f";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
+
+{% endblock %}
+
 {% block navigation %}
   <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
     {% block menu %}

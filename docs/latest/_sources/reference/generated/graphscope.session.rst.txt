@@ -14,13 +14,17 @@
    .. autosummary::
    
       ~session.__init__
+      ~session.add_lib
       ~session.as_default
       ~session.close
+      ~session.eager
       ~session.g
       ~session.get_config
+      ~session.graphlearn
       ~session.gremlin
       ~session.learning
       ~session.load_from
+      ~session.nx
       ~session.run
    
    
@@ -31,6 +35,8 @@
 
    .. autosummary::
    
+      ~session.closed
+      ~session.dag
       ~session.engine_config
       ~session.info
       ~session.session_id
