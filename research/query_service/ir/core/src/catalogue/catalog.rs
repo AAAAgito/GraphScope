@@ -143,7 +143,7 @@ impl Catalogue {
         while queue.len() > 0 {
             let (relaxed_pattern, relaxed_pattern_index) = queue.pop_front().unwrap();
             // Filter out those patterns beyond the pattern size limitation
-            if relaxed_pattern.get_vertex_num() >= pattern_size_limit {
+            if relaxed_pattern.get_vertices_num() >= pattern_size_limit {
                 continue;
             }
             // Find possible extend steps of the relaxed pattern
@@ -404,7 +404,7 @@ impl Pattern {
     pub fn generate_simple_extend_match_plan(&self) -> IrResult<pb::LogicalPlan> {
         let mut trace_pattern = self.clone();
         let mut definite_extend_steps = vec![];
-        while trace_pattern.get_vertex_num() > 1 {
+        while trace_pattern.get_vertices_num() > 1 {
             let mut all_vertex_ids: Vec<PatternId> = trace_pattern
                 .vertices_iter()
                 .map(|v| v.get_id())
@@ -446,7 +446,7 @@ impl Pattern {
                 .get_pattern_weight(trace_pattern_index)
                 .unwrap();
             let mut definite_extend_steps = vec![];
-            while trace_pattern.get_vertex_num() > 1 {
+            while trace_pattern.get_vertices_num() > 1 {
                 let mut all_extends: Vec<(NodeIndex, &VertexWeight, &EdgeWeight)> = catalog
                     .pattern_in_connection_iter(trace_pattern_index)
                     .filter(|(_, _, edge_weight)| edge_weight.is_extend())

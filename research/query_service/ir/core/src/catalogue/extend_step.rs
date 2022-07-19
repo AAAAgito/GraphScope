@@ -174,7 +174,7 @@ impl TryFrom<Pattern> for DefiniteExtendStep {
     type Error = IrError;
 
     fn try_from(pattern: Pattern) -> IrResult<Self> {
-        if pattern.get_vertex_num() == 1 {
+        if pattern.get_vertices_num() == 1 {
             let target_vertex = pattern.vertices_iter().last().unwrap();
             let target_v_id = target_vertex.get_id();
             let target_v_label = target_vertex.get_label();
