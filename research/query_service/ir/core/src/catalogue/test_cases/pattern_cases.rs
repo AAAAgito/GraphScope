@@ -310,12 +310,12 @@ pub fn build_pattern_case9() -> Pattern {
 ///
 /// Person only Pattern
 pub fn build_modern_pattern_case1() -> Pattern {
-    Pattern::from(PatternVertex::new(0, 0))
+    Pattern::from(PatternVertex::from(PatternTuple::new(0, 0)))
 }
 
 /// Software only Pattern
 pub fn build_modern_pattern_case2() -> Pattern {
-    Pattern::from(PatternVertex::new(0, 1))
+    Pattern::from(PatternVertex::from(PatternTuple::new(0, 1)))
 }
 
 /// The pattern looks like:

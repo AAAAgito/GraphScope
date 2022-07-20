@@ -76,21 +76,6 @@ impl From<PatternTuple> for PatternVertex {
     }
 }
 
-impl PatternVertex {
-    /// Create a new PatternVertex with user-defined ID and vertex label
-    /// - The rank is initially set as 0
-    pub fn new(id: PatternId, label: PatternLabelId) -> PatternVertex {
-        PatternVertex {
-            tuple: PatternTuple { id, label },
-            rank: 0,
-            out_adjacencies: vec![],
-            in_adjacencies: vec![],
-            tag: None,
-            predicate: None,
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct PatternEdge {
     tuple: PatternTuple,
@@ -184,7 +169,10 @@ impl From<PatternVertex> for Pattern {
             edges: VecMap::new(),
             vertices: VecMap::from_iter([(vertex.tuple.id, vertex.tuple.into())]),
             edge_label_map: BTreeMap::new(),
-            vertex_label_map: BTreeMap::new(),
+            vertex_label_map: BTreeMap::from_iter([(
+                vertex.tuple.label,
+                BTreeSet::from_iter([vertex.tuple.id]),
+            )]),
             edge_tag_map: BTreeMap::new(),
             vertex_tag_map: BTreeMap::new(),
         }
@@ -589,6 +577,10 @@ fn generate_new_pattern_edge(
 
 /// Getters of fields of Pattern
 impl Pattern {
+    pub fn get_edge_from_id(&self, edge_id: PatternId) -> Option<&PatternEdge> {
+        self.edges.get(edge_id)
+    }
+
     /// Get Edge Label from Edge ID
     pub fn get_edge_label(&self, edge_id: PatternId) -> Option<PatternLabelId> {
         self.edges
@@ -1959,8 +1951,8 @@ impl Pattern {
 
     /// Remove a vertex with all its adjacent edges in the current pattern
     pub fn remove_vertex(&mut self, vertex_id: PatternId) {
-        if let Some(vertex) = self.vertices.get(vertex_id) {
-            let vertex_label = vertex.tuple.label;
+        if self.vertices.get(vertex_id).is_some() {
+            let vertex_label = self.get_vertex_label(vertex_id).unwrap();
             let adjacencies: Vec<Adjacency> = self.adjacencies_iter(vertex_id).collect();
             // delete target vertex
             // delete in vertices
@@ -1980,7 +1972,7 @@ impl Pattern {
                 self.vertex_label_map.remove(&vertex_label);
             }
             // delete in vertex tag map
-            if let Some(tag) = vertex.tag {
+            if let Some(tag) = self.get_vertex_tag(vertex_id) {
                 self.vertex_tag_map.remove(&tag);
             }
             for adjacency in adjacencies {

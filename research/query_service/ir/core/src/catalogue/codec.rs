@@ -22,7 +22,7 @@ use ascii::ToAsciiChar;
 
 use super::pattern_meta::PatternMeta;
 use crate::catalogue::extend_step::{ExtendEdge, ExtendStep};
-use crate::catalogue::pattern::{Pattern, PatternEdge, PatternVertex};
+use crate::catalogue::pattern::{Pattern, PatternEdge, PatternTuple, PatternVertex};
 use crate::catalogue::{PatternDirection, PatternId, PatternLabelId, PatternRankId};
 use crate::error::IrError;
 
@@ -764,7 +764,7 @@ impl DecodeUnit {
     /// Transform a &[i32] decode value to a Pattern
     pub fn to_pattern(decode_vec: &[i32]) -> Result<Pattern, IrError> {
         if decode_vec.len() == 1 {
-            Ok(Pattern::from(PatternVertex::new(0, decode_vec[0])))
+            Ok(Pattern::from(PatternVertex::from(PatternTuple::new(0, decode_vec[0]))))
         } else if decode_vec.len() % 5 == 0 {
             let mut pattern_edges: Vec<PatternEdge> = Vec::with_capacity(decode_vec.len() / 5);
             for i in (0..decode_vec.len()).step_by(5) {
@@ -797,21 +797,21 @@ impl DecodeUnit {
 /// Unit Testing
 #[cfg(test)]
 mod tests {
-    use ascii::{self, AsciiString, ToAsciiChar};
-
+    // use ascii::{self, AsciiString, ToAsciiChar};
     use crate::catalogue::codec::*;
     use crate::catalogue::pattern::*;
     use crate::catalogue::test_cases::extend_step_cases::*;
     use crate::catalogue::test_cases::pattern_cases::*;
+    use ascii::{self, AsciiString};
 
     /// ### Generate AsciiString from Vector
-    fn generate_asciistring_from_vec(vec: &[u8]) -> AsciiString {
-        let mut output = AsciiString::new();
-        for value in vec {
-            output.push(value.to_ascii_char().unwrap());
-        }
-        output
-    }
+    // fn generate_asciistring_from_vec(vec: &[u8]) -> AsciiString {
+    //     let mut output = AsciiString::new();
+    //     for value in vec {
+    //         output.push(value.to_ascii_char().unwrap());
+    //     }
+    //     output
+    // }
 
     // #[test]
     // fn test_create_encode_unit_from_edge() {
@@ -1080,7 +1080,7 @@ mod tests {
     #[test]
     fn test_encode_decode_one_vertex_pattern() {
         // Pattern has label 2
-        let pattern = Pattern::from(PatternVertex::new(0, 2));
+        let pattern = Pattern::from(PatternVertex::from(PatternTuple::new(0, 2)));
         let encoder = Encoder::init_by_pattern(&pattern, 1);
         let code1: Vec<u8> = pattern.encode_to(&encoder);
         let pattern: Pattern = Pattern::decode_from(&code1, &encoder).unwrap();
@@ -1092,7 +1092,7 @@ mod tests {
     #[test]
     fn test_encode_decode_one_vertex_pattern_ascii_string() {
         // Pattern has label 5
-        let pattern = Pattern::from(PatternVertex::new(0, 5));
+        let pattern = Pattern::from(PatternVertex::from(PatternTuple::new(0, 5)));
         let encoder = Encoder::init_by_pattern(&pattern, 1);
         let code1: AsciiString = pattern.encode_to(&encoder);
         let pattern: Pattern = Pattern::decode_from(&code1, &encoder).unwrap();
