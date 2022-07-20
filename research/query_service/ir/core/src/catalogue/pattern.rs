@@ -1036,11 +1036,8 @@ impl Pattern {
             .set_rank_by_neighbor_info(&vertex_adjacencies_map, &mut vertices_with_unfixed_rank)
             .unwrap();
         // Keep updating ranks by ranks computed in the last iteration
-        loop {
-            // Stop until the ranks can no longer be updated
-            if !is_rank_changed {
-                break;
-            }
+        // Stop until the ranks can no longer be updated
+        while is_rank_changed {
             // Update the Order of Neighbor Edges Based on the ranks of end vertices only
             self.update_neighbor_edges_map(&mut vertex_adjacencies_map);
             // Update vertex ranks by newly updated ranks in the last iteration
@@ -1060,15 +1057,25 @@ impl Pattern {
     pub fn get_vertex_adjacencies_map(&self) -> HashMap<PatternId, Vec<Adjacency>> {
         let mut vertex_adjacencies_map = HashMap::new();
         for v_id in self.vertices_iter().map(|v| v.id) {
-            let mut outgoing_edges: Vec<Adjacency> = self.out_adjacencies_iter(v_id).collect();
-            let mut incoming_edges: Vec<Adjacency> = self.in_adjacencies_iter(v_id).collect();
+            let mut out_adjacencies: Vec<Adjacency> = self
+                .vertices
+                .get(v_id)
+                .unwrap()
+                .out_adjacencies
+                .clone();
+            let mut in_adjacencies: Vec<Adjacency> = self
+                .vertices
+                .get(v_id)
+                .unwrap()
+                .in_adjacencies
+                .clone();
             // Sort the edges
-            outgoing_edges.sort_by(|adj1, adj2| self.cmp_edges(adj1.edge.id, adj2.edge.id));
-            incoming_edges.sort_by(|adj1, adj2| self.cmp_edges(adj1.edge.id, adj2.edge.id));
+            out_adjacencies.sort_by(|adj1, adj2| self.cmp_edges(adj1.edge.id, adj2.edge.id));
+            in_adjacencies.sort_by(|adj1, adj2| self.cmp_edges(adj1.edge.id, adj2.edge.id));
             // Concat two edge info vector
-            outgoing_edges.append(&mut incoming_edges);
+            out_adjacencies.append(&mut in_adjacencies);
             // Insert into the Hashmap
-            vertex_adjacencies_map.insert(v_id, outgoing_edges);
+            vertex_adjacencies_map.insert(v_id, out_adjacencies);
         }
 
         vertex_adjacencies_map
@@ -1468,19 +1475,11 @@ impl Pattern {
 
     // Update the Order of Neighbor Vertices Based on the ranks of end vertices only
     fn update_neighbor_edges_map(&self, vertex_adjacencies_map: &mut HashMap<PatternId, Vec<Adjacency>>) {
-        for vertex in self.vertices_iter() {
-            vertex_adjacencies_map
-                .get_mut(&vertex.get_id())
-                .unwrap()
-                .sort_by(|e1, e2| {
-                    self.get_vertex_rank(e1.get_adj_vertex().id)
-                        .unwrap()
-                        .cmp(
-                            &self
-                                .get_vertex_rank(e2.get_adj_vertex().id)
-                                .unwrap(),
-                        )
-                });
+        for (_, adjacencies) in vertex_adjacencies_map.iter_mut() {
+            adjacencies.sort_by(|e1, e2| {
+                self.get_vertex_rank(e1.get_adj_vertex().id)
+                    .cmp(&self.get_vertex_rank(e2.get_adj_vertex().id))
+            })
         }
     }
 }
