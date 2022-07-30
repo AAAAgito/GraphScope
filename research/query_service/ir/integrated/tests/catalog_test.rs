@@ -223,28 +223,28 @@ mod test {
         let expand_opr1 = pb::EdgeExpand {
             v_tag: None,
             direction: 0,                                              // out
-            params: Some(query_params(vec![11.into()], vec![], None)), //ISLOCATEDIN
+            params: Some(query_params(vec![], vec![], None)), //ISLOCATEDIN
             is_edge: false,
             alias: None,
         };
         let expand_opr2 = pb::EdgeExpand {
             v_tag: None,
             direction: 0,                                              // out
-            params: Some(query_params(vec![11.into()], vec![], None)), //ISLOCATEDIN
+            params: Some(query_params(vec![], vec![], None)), //ISLOCATEDIN
             is_edge: false,
             alias: None,
         };
         let expand_opr3 = pb::EdgeExpand {
             v_tag: None,
             direction: 0,                                              // out
-            params: Some(query_params(vec![13.into()], vec![], None)), //LIKES
+            params: Some(query_params(vec![], vec![], None)), //LIKES
             is_edge: false,
             alias: None,
         };
         let expand_opr4 = pb::EdgeExpand {
             v_tag: None,
             direction: 0,                                             // out
-            params: Some(query_params(vec![0.into()], vec![], None)), //HASCREATOR
+            params: Some(query_params(vec![], vec![], None)), //HASCREATOR
             is_edge: false,
             alias: None,
         };
@@ -409,6 +409,7 @@ mod test {
         while let Some(result) = results.next() {
             if let Ok(_) = result {
                 count += 1;
+                println!("{:?}",result);
             }
         }
         println!("{}", count);
@@ -505,7 +506,7 @@ mod test {
                 count += 1;
             }
         }
-        println!("{}", count);
+        println!("3{}", count);
     }
 
     #[test]
@@ -552,8 +553,9 @@ mod test {
                 count += 1;
             }
         }
-        println!("{}", count);
+        println!("4{}", count);
     }
+
 
     #[test]
     fn test_generate_simple_matching_plan_for_ldbc_pattern_from_pb_case4() {

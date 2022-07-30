@@ -19,10 +19,11 @@ use std::sync::Arc;
 
 use dyn_type::Object;
 use graph_proxy::apis::graph::PKV;
-use graph_proxy::apis::{get_graph, Edge, Partitioner, QueryParams, Vertex, ID};
+use graph_proxy::apis::{get_graph, Edge, Partitioner, QueryParams, Vertex, ID, GraphElement};
 use ir_common::error::{ParsePbError, ParsePbResult};
 use ir_common::generated::algebra as algebra_pb;
 use ir_common::{KeyId, NameOrId};
+use rand::{thread_rng, Rng};
 
 use crate::error::{FnGenError, FnGenResult};
 use crate::process::record::Record;
@@ -158,7 +159,7 @@ impl SourceOperator {
                     // parallel scan, and each worker should scan the partitions assigned to it in self.v_params.partitions
                     v_source = graph.scan_vertex(&self.query_params)?;
                 };
-                Ok(Box::new(v_source.map(move |v| Record::new(v, self.alias.clone()))))
+                Ok(Box::new(v_source.filter(|v|thread_rng().gen_range(0, 100)<100).map(move |v| Record::new(v, self.alias.clone()))))
             }
             SourceType::Edge => {
                 let mut e_source = Box::new(std::iter::empty()) as Box<dyn Iterator<Item = Edge> + Send>;

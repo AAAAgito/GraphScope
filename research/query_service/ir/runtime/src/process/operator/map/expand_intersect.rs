@@ -22,6 +22,7 @@ use ir_common::error::ParsePbError;
 use ir_common::generated::algebra as algebra_pb;
 use ir_common::KeyId;
 use pegasus::api::function::{FilterMapFunction, FnResult};
+use rand::{thread_rng, Rng};
 
 use crate::error::{FnExecError, FnGenError, FnGenResult};
 use crate::process::operator::map::FilterMapFuncGen;
@@ -109,6 +110,7 @@ impl<E: Into<GraphObject> + 'static> FilterMapFunction<Record, Record> for Expan
                 "start_v_tag {:?} in ExpandOrIntersect",
                 self.start_v_tag
             )))?;
+        let rate = 100;
         if let Some(v) = entry.as_graph_vertex() {
             let id = v.id();
             let iter = self.stmt.exec(id)?.map(|e| match e.into() {
@@ -122,6 +124,7 @@ impl<E: Into<GraphObject> + 'static> FilterMapFunction<Record, Record> for Expan
                     unreachable!()
                 }
             });
+            // .filter(|a| thread_rng().gen_range(0, 100)<100);
             if let Some(pre_entry) = input.get_column_mut(&self.edge_or_end_v_tag) {
                 // the case of expansion and intersection
                 match pre_entry {

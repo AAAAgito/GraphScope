@@ -16,7 +16,7 @@
 use std::convert::TryInto;
 
 use graph_proxy::apis::{
-    get_graph, DefaultDetails, Direction, DynDetails, GraphElement, GraphObject, Statement, Vertex, ID,
+    get_graph, DefaultDetails, Direction, DynDetails, GraphElement, GraphObject, Statement, Vertex, ID, Edge
 };
 use ir_common::generated::algebra as algebra_pb;
 use ir_common::KeyId;
@@ -25,7 +25,7 @@ use pegasus::api::function::{DynIter, FlatMapFunction, FnResult};
 use crate::error::{FnExecError, FnGenError, FnGenResult};
 use crate::process::operator::flatmap::FlatMapFuncGen;
 use crate::process::record::{Entry, Record, RecordElement, RecordExpandIter, RecordPathExpandIter};
-
+use rand::{thread_rng, Rng};
 pub struct EdgeExpandOperator<E: Into<Entry>> {
     start_v_tag: Option<KeyId>,
     edge_or_end_v_tag: Option<KeyId>,
@@ -63,7 +63,20 @@ impl<E: Into<Entry> + 'static> FlatMapFunction<Record, Record> for EdgeExpandOpe
                     Box::new(neighbors_iter),
                 )))
             } else {
-                Ok(Box::new(RecordExpandIter::new(input, self.edge_or_end_v_tag.as_ref(), iter)))
+                Ok(Box::new(RecordExpandIter::new(input, self.edge_or_end_v_tag.as_ref(), Box::new(iter
+                
+            .map(|e| match e.into() {
+                Entry::Element(RecordElement::OnGraph(GraphObject::V(e))) => Vertex::new(
+                    e.id(),
+                    Some(e.label().unwrap().clone()),
+                    DynDetails::new(DefaultDetails::default()),
+                ),
+                _ => {
+                    unreachable!()
+                }
+            })
+            // .filter(|e| thread_rng().gen_range(0, 100)<100)
+                ))))
             }
         } else if let Some(graph_path) = entry.as_graph_path() {
             let path_end = graph_path

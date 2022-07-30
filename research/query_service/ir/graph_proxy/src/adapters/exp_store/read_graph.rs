@@ -14,6 +14,8 @@
 //! limitations under the License.
 
 use std::collections::HashMap;
+use std::collections::HashSet;
+use rand::{thread_rng, Rng};
 use std::fmt;
 use std::path::Path;
 use std::sync::atomic::{AtomicPtr, Ordering};
@@ -22,10 +24,10 @@ use std::sync::Arc;
 use dyn_type::{object, Object};
 use graph_store::common::LabelId;
 use graph_store::config::{JsonConf, DIR_GRAPH_SCHEMA, FILE_SCHEMA};
-use graph_store::ldbc::{LDBCVertexParser, LABEL_SHIFT_BITS};
+use graph_store::ldbc::{LDBCVertexParser, LABEL_SHIFT_BITS, GraphLoader};
 use graph_store::prelude::{
     DefaultId, EdgeId, GlobalStoreTrait, GlobalStoreUpdate, GraphDBConfig, InternalId, LDBCGraphSchema,
-    LargeGraphDB, LocalEdge, LocalVertex, MutableGraphDB, Row, INVALID_LABEL_ID,
+    LargeGraphDB, LocalEdge, LocalVertex, MutableGraphDB, Row, INVALID_LABEL_ID, Direction as dir,
 };
 use ir_common::{KeyId, NameOrId};
 use pegasus::configure_with_default;
@@ -58,22 +60,76 @@ fn initialize() -> Arc<ExpStore> {
 }
 
 fn _init_graph() -> LargeGraphDB<DefaultId, InternalId> {
-    if DATA_PATH.is_empty() {
-        info!("Create and use the modern graph for demo.");
-        _init_modern_graph()
-    } else {
-        info!("Read the graph data from {:?} for demo.", *DATA_PATH);
-        GraphDBConfig::default()
-            .root_dir(&(*DATA_PATH))
-            .partition(*PARTITION_ID)
-            .schema_file(
-                &(DATA_PATH.as_ref() as &Path)
-                    .join(DIR_GRAPH_SCHEMA)
-                    .join(FILE_SCHEMA),
-            )
-            .open()
-            .expect("Open graph error")
-    }
+    // if DATA_PATH.is_empty() {
+    //     info!("Create and use the modern graph for demo.");
+    //     _init_modern_graph()
+    // } else {
+    //     info!("Read the graph data from {:?} for demo.", *DATA_PATH);
+    //     GraphDBConfig::default()
+    //         .root_dir(&(*DATA_PATH))
+    //         .partition(*PARTITION_ID)
+    //         .schema_file(
+    //             &(DATA_PATH.as_ref() as &Path)
+    //                 .join(DIR_GRAPH_SCHEMA)
+    //                 .join(FILE_SCHEMA),
+    //         )
+    //         .open()
+    //         .expect("Open graph error")
+    // }
+    let data_dir = "/Users/yanglaoyuan/Documents/GitHub/GraphScope/research/query_service/ir/data/graph_data";
+    let root_dir = "/Users/yanglaoyuan/Documents/GitHub/GraphScope/research/query_service/ir/data/graph_data";
+    let schema_file = "/Users/yanglaoyuan/Documents/GitHub/GraphScope/research/query_service/ir/data/schema.json";
+    let mut loader =
+        GraphLoader::<DefaultId, InternalId>::new(data_dir, root_dir, schema_file, 20, 0, 1);
+    // load whole graph
+    loader.load().expect("Load ldbc data error!");
+    let graphdb = loader.into_graph();
+    let rate = 100;
+    // let mut mut_graph: MutableGraphDB<DefaultId, InternalId> = GraphDBConfig::default().new();
+    // random vertex line 90-111
+        // let all_vertex: Vec<usize> = graphdb.get_all_vertices(None).map(|v| v.get_id()).filter(|id| graphdb.get_both_edges(*id, None).count() !=0).collect();
+        // let mut rng = thread_rng();
+        // let mut added = HashSet::new();
+        // for i in all_vertex.clone() {
+        //     let random_idx = rng.gen_range(0,100);
+        //     if random_idx <= rate {
+        //         let label = graphdb.get_vertex(i).unwrap().get_label();
+        //         mut_graph.add_vertex(i, label);
+        //         added.insert(i);
+
+        //     }
+        // }
+        
+        // for i in added.clone() {
+        //     let id = i;
+        //     let adj_out = graphdb.get_adj_edges(id, None, dir::Outgoing);
+        //     for j in adj_out {
+        //         if added.contains(&j.get_dst_id()) {
+        //             mut_graph.add_edge(id, j.get_dst_id(), j.get_label());
+        //         }
+        //     }
+        // }
+    // end random vertex
+
+    // random edge
+        // let all_vertex: Vec<usize> = graphdb.get_all_vertices(None).map(|v| v.get_id()).filter(|id| graphdb.get_both_edges(*id, None).count() !=0).collect();
+        // for i in all_vertex {
+        //     let label = graphdb.get_vertex(i).unwrap().get_label();
+        //     mut_graph.add_vertex(i, label);
+        // }
+        // for j in graphdb.get_all_edges(None) {
+        //     let mut rng = thread_rng();
+        //     let ran = rng.gen_range(0, 100);
+        //     if ran <= rate {
+        //         mut_graph.add_edge(j.get_src_id(), j.get_dst_id(), j.get_label());
+        //     }
+        // }
+    // end random edge
+        
+        // let schema =
+        //         LDBCGraphSchema::from_json_file(schema_file).expect("Read graph schema error!");
+        // let graphdb = mut_graph.into_graph(schema);
+        graphdb
 }
 
 fn _init_modern_graph() -> LargeGraphDB<DefaultId, InternalId> {
