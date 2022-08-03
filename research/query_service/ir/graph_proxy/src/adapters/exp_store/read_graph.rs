@@ -84,51 +84,52 @@ fn _init_graph() -> LargeGraphDB<DefaultId, InternalId> {
     // load whole graph
     loader.load().expect("Load ldbc data error!");
     let graphdb = loader.into_graph();
-    let rate = 100;
-    // let mut mut_graph: MutableGraphDB<DefaultId, InternalId> = GraphDBConfig::default().new();
+    let rate = 40;
+    let mut mut_graph: MutableGraphDB<DefaultId, InternalId> = GraphDBConfig::default().new();
     // random vertex line 90-111
-        // let all_vertex: Vec<usize> = graphdb.get_all_vertices(None).map(|v| v.get_id()).filter(|id| graphdb.get_both_edges(*id, None).count() !=0).collect();
-        // let mut rng = thread_rng();
-        // let mut added = HashSet::new();
-        // for i in all_vertex.clone() {
-        //     let random_idx = rng.gen_range(0,100);
-        //     if random_idx <= rate {
-        //         let label = graphdb.get_vertex(i).unwrap().get_label();
-        //         mut_graph.add_vertex(i, label);
-        //         added.insert(i);
+        let all_vertex: Vec<usize> = graphdb.get_all_vertices(None).map(|v| v.get_id()).filter(|id| graphdb.get_both_edges(*id, None).count() !=0).collect();
+        let mut rng = thread_rng();
+        let mut added = HashSet::new();
+        for i in all_vertex.clone() {
+            let random_idx = rng.gen_range(0,100);
+            if random_idx <= rate {
+                let label = graphdb.get_vertex(i).unwrap().get_label();
+                mut_graph.add_vertex(i, label);
+                added.insert(i);
 
-        //     }
-        // }
+            }
+        }
         
-        // for i in added.clone() {
-        //     let id = i;
-        //     let adj_out = graphdb.get_adj_edges(id, None, dir::Outgoing);
-        //     for j in adj_out {
-        //         if added.contains(&j.get_dst_id()) {
-        //             mut_graph.add_edge(id, j.get_dst_id(), j.get_label());
-        //         }
-        //     }
-        // }
+        for i in added.clone() {
+            let id = i;
+            let adj_out = graphdb.get_adj_edges(id, None, dir::Outgoing);
+            for j in adj_out {
+                if added.contains(&j.get_dst_id()) {
+                    mut_graph.add_edge(id, j.get_dst_id(), j.get_label());
+                }
+            }
+        }
     // end random vertex
 
     // random edge
-        // let all_vertex: Vec<usize> = graphdb.get_all_vertices(None).map(|v| v.get_id()).filter(|id| graphdb.get_both_edges(*id, None).count() !=0).collect();
-        // for i in all_vertex {
-        //     let label = graphdb.get_vertex(i).unwrap().get_label();
-        //     mut_graph.add_vertex(i, label);
-        // }
-        // for j in graphdb.get_all_edges(None) {
-        //     let mut rng = thread_rng();
-        //     let ran = rng.gen_range(0, 100);
-        //     if ran <= rate {
-        //         mut_graph.add_edge(j.get_src_id(), j.get_dst_id(), j.get_label());
-        //     }
-        // }
-    // end random edge
+    //     let all_vertex: Vec<usize> = graphdb.get_all_vertices(None).map(|v| v.get_id()).filter(|id| graphdb.get_both_edges(*id, None).count() !=0).collect();
+    //     for i in all_vertex {
+    //         let label = graphdb.get_vertex(i).unwrap().get_label();
+    //         mut_graph.add_vertex(i, label);
+    //     }
+    //     for j in graphdb.get_all_edges(None) {
+    //         let mut rng = thread_rng();
+    //         let ran = rng.gen_range(0, 100);
+    //         if ran <= rate {
+    //             mut_graph.add_edge(j.get_src_id(), j.get_dst_id(), j.get_label());
+    //         }
+    //     }
+    // // end random edge
+        mut_graph.export();
+        let schema =
+                LDBCGraphSchema::from_json_file(schema_file).expect("Read graph schema error!");
+        let graphdb = mut_graph.into_graph(schema);
         
-        // let schema =
-        //         LDBCGraphSchema::from_json_file(schema_file).expect("Read graph schema error!");
-        // let graphdb = mut_graph.into_graph(schema);
         graphdb
 }
 

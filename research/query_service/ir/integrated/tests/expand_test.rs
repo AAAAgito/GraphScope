@@ -774,6 +774,224 @@ mod test {
     }
 
     #[test]
+    fn expand_and_intersection_bi11() {
+        // marko (A) -> lop (B);
+        let expand_opr1 = pb::EdgeExpand {
+            v_tag: Some(TAG_A.into()),
+            direction: 0, // out
+            params: Some(query_params(vec![12.into()], vec![], None)),
+            is_edge: false,
+            alias: Some(TAG_B.into()),
+        };
+
+        // marko (A) -> josh (C): expand C;
+        let expand_opr2 = pb::EdgeExpand {
+            v_tag: Some(TAG_A.into()),
+            direction: 0, // out
+            params: Some(query_params(vec![12.into()], vec![], None)),
+            is_edge: false,
+            alias: Some(TAG_C.into()),
+        };
+
+        // lop (B) <- josh (C): expand C and intersect on C;
+        let expand_opr3 = pb::EdgeExpand {
+            v_tag: Some(TAG_B.into()),
+            direction: 0, // in
+            params: Some(query_params(vec![12.into()], vec![], None)),
+            is_edge: false,
+            alias: Some(TAG_C.into()),
+        };
+        let expand_opr4 = pb::EdgeExpand {
+            v_tag: Some(TAG_C.into()),
+            direction: 0, // in
+            params: Some(query_params(vec![11.into()], vec![], None)),
+            is_edge: false,
+            alias: Some(TAG_D.into()),
+        };
+        let expand_opr5 = pb::EdgeExpand {
+            v_tag: Some(TAG_B.into()),
+            direction: 0, // in
+            params: Some(query_params(vec![11.into()], vec![], None)),
+            is_edge: false,
+            alias: Some(TAG_E.into()),
+        };
+        let expand_opr6 = pb::EdgeExpand {
+            v_tag: Some(TAG_A.into()),
+            direction: 0, // in
+            params: Some(query_params(vec![11.into()], vec![], None)),
+            is_edge: false,
+            alias: Some(TAG_F.into()),
+        };
+        let expand_opr7 = pb::EdgeExpand {
+            v_tag: Some(TAG_D.into()),
+            direction: 0, // in
+            params: Some(query_params(vec![17.into()], vec![], None)),
+            is_edge: false,
+            alias: Some(TAG_G.into()),
+        };
+        let expand_opr8 = pb::EdgeExpand {
+            v_tag: Some(TAG_E.into()),
+            direction: 0, // in
+            params: Some(query_params(vec![17.into()], vec![], None)),
+            is_edge: false,
+            alias: Some(TAG_G.into()),
+        };
+        let expand_opr9 = pb::EdgeExpand {
+            v_tag: Some(TAG_F.into()),
+            direction: 0, // in
+            params: Some(query_params(vec![17.into()], vec![], None)),
+            is_edge: false,
+            alias: Some(TAG_G.into()),
+        };
+
+        // unfold tag C
+        let unfold_opr = pb::Unfold { tag: Some(TAG_C.into()), alias: Some(TAG_C.into()) };
+        let unfold_opr1 = pb::Unfold { tag: Some(TAG_G.into()), alias: Some(TAG_G.into()) };
+
+        let conf = JobConf::new("expand_and_intersection_unfold_test");
+        let mut result = pegasus::run(conf, || {
+            let expand1 = expand_opr1.clone();
+            let expand2 = expand_opr2.clone();
+            let expand3 = expand_opr3.clone();
+            let expand4 = expand_opr4.clone();
+            let expand5 = expand_opr5.clone();
+            let expand6 = expand_opr6.clone();
+            let expand7 = expand_opr7.clone();
+            let expand8 = expand_opr8.clone();
+            let expand9 = expand_opr9.clone();
+            let unfold = unfold_opr.clone();
+            let unfold1 = unfold_opr1.clone();
+            |input, output| {
+                // source vertex: marko
+                let source_iter = source_gen_with_scan_opr(pb::Scan {
+                    scan_opt: 0,
+                    alias: Some(TAG_A.into()),
+                    params: None,
+                    idx_predicate: None,
+                });
+                let mut stream = input.input_from(source_iter)?;
+                let flatmap_func1 = expand1.gen_flat_map().unwrap();
+                stream = stream.flat_map(move |input| flatmap_func1.exec(input))?;
+                let map_func2 = expand2.gen_filter_map().unwrap();
+                stream = stream.filter_map(move |input| map_func2.exec(input))?;
+                let map_func3 = expand3.gen_filter_map().unwrap();
+                stream = stream.filter_map(move |input| map_func3.exec(input))?;
+                let unfold_func = unfold.gen_flat_map().unwrap();
+                stream = stream.flat_map(move |input| unfold_func.exec(input))?;
+                let flatmap_func1 = expand4.gen_flat_map().unwrap();
+                stream = stream.flat_map(move |input| flatmap_func1.exec(input))?;
+
+                let flatmap_func1 = expand5.gen_flat_map().unwrap();
+                stream = stream.flat_map(move |input| flatmap_func1.exec(input))?;
+                let flatmap_func1 = expand6.gen_flat_map().unwrap();
+                stream = stream.flat_map(move |input| flatmap_func1.exec(input))?;
+                let map_func3 = expand7.gen_filter_map().unwrap();
+                stream = stream.filter_map(move |input| map_func3.exec(input))?;
+                let map_func3 = expand8.gen_filter_map().unwrap();
+                stream = stream.filter_map(move |input| map_func3.exec(input))?;
+                let map_func3 = expand9.gen_filter_map().unwrap();
+                stream = stream.filter_map(move |input| map_func3.exec(input))?;
+                let unfold_func = unfold1.gen_flat_map().unwrap();
+                stream = stream.flat_map(move |input| unfold_func.exec(input))?;
+                stream.sink_into(output)
+            }
+        })
+        .expect("build job failure");
+
+        let v4: DefaultId = LDBCVertexParser::to_global_id(4, 0);
+        let expected_ids = vec![v4];
+        let mut result_ids = vec![];
+        while let Some(Ok(record)) = result.next() {
+            if let Some(element) = record.get(None).unwrap().as_graph_vertex() {
+                result_ids.push(element.id() as usize);
+            }
+        }
+        println!("tri {}",result_ids.len())
+    }
+
+    #[test]
+    fn expand_and_intersection_unfold_tri_extend() {
+        // marko (A) -> lop (B);
+        let expand_opr1 = pb::EdgeExpand {
+            v_tag: Some(TAG_A.into()),
+            direction: 0, // out
+            params: Some(query_params(vec![], vec![], None)),
+            is_edge: false,
+            alias: Some(TAG_B.into()),
+        };
+
+        // marko (A) -> josh (C): expand C;
+        let expand_opr2 = pb::EdgeExpand {
+            v_tag: Some(TAG_A.into()),
+            direction: 0, // out
+            params: Some(query_params(vec![], vec![], None)),
+            is_edge: false,
+            alias: Some(TAG_C.into()),
+        };
+
+        // lop (B) <- josh (C): expand C and intersect on C;
+        let expand_opr3 = pb::EdgeExpand {
+            v_tag: Some(TAG_B.into()),
+            direction: 0, // in
+            params: Some(query_params(vec![], vec![], None)),
+            is_edge: false,
+            alias: Some(TAG_C.into()),
+        };
+        // lop (B) <- josh (C): expand C and intersect on C;
+        let expand_opr4 = pb::EdgeExpand {
+            v_tag: Some(TAG_C.into()),
+            direction: 0, // in
+            params: Some(query_params(vec![], vec![], None)),
+            is_edge: false,
+            alias: Some(TAG_D.into()),
+        };
+
+        // unfold tag C
+        let unfold_opr = pb::Unfold { tag: Some(TAG_C.into()), alias: Some(TAG_C.into()) };
+
+        let conf = JobConf::new("expand_and_intersection_unfold_test");
+        let mut result = pegasus::run(conf, || {
+            let expand1 = expand_opr1.clone();
+            let expand2 = expand_opr2.clone();
+            let expand3 = expand_opr3.clone();
+            let unfold = unfold_opr.clone();
+            let expand4 = expand_opr4.clone();
+            |input, output| {
+                // source vertex: marko
+                let source_iter = source_gen_with_scan_opr(pb::Scan {
+                    scan_opt: 0,
+                    alias: Some(TAG_A.into()),
+                    params: None,
+                    idx_predicate: None,
+                });
+                let mut stream = input.input_from(source_iter)?;
+                let flatmap_func1 = expand1.gen_flat_map().unwrap();
+                stream = stream.flat_map(move |input| flatmap_func1.exec(input))?;
+                let map_func2 = expand2.gen_filter_map().unwrap();
+                stream = stream.filter_map(move |input| map_func2.exec(input))?;
+                let map_func3 = expand3.gen_filter_map().unwrap();
+                stream = stream.filter_map(move |input| map_func3.exec(input))?;
+                let unfold_func = unfold.gen_flat_map().unwrap();
+                stream = stream.flat_map(move |input| unfold_func.exec(input))?;
+                let flatmap_func4 = expand4.gen_flat_map().unwrap();
+                stream = stream.flat_map(move |input| flatmap_func4.exec(input))?;
+                stream.sink_into(output)
+            }
+        })
+        .expect("build job failure");
+
+        let v4: DefaultId = LDBCVertexParser::to_global_id(4, 0);
+        let expected_ids = vec![v4];
+        let mut result_ids = vec![];
+        while let Some(Ok(record)) = result.next() {
+            if let Some(element) = record.get(None).unwrap().as_graph_vertex() {
+                result_ids.push(element.id() as usize);
+            }
+        }
+        println!("tri_extend {}",result_ids.len())
+    }
+
+    #[test]
     fn expand_and_intersection_unfold_test_square() {
         // marko (A) -> lop (B);
         let expand_opr1 = pb::EdgeExpand {
@@ -869,7 +1087,7 @@ mod test {
 
         // marko (A) -> josh (C): expand C;
         let expand_opr2 = pb::EdgeExpand {
-            v_tag: Some(TAG_B.into()),
+            v_tag: Some(TAG_A.into()),
             direction: 0, // out
             params: Some(query_params(vec![], vec![], None)),
             is_edge: false,
@@ -878,19 +1096,19 @@ mod test {
 
         // marko (A) -> josh (C): expand C;
         let expand_opr3 = pb::EdgeExpand {
-            v_tag: Some(TAG_C.into()),
+            v_tag: Some(TAG_B.into()),
             direction: 0, // out
             params: Some(query_params(vec![], vec![], None)),
             is_edge: false,
-            alias: Some(TAG_D.into()),
+            alias: Some(TAG_C.into()),
         };
         // lop (B) <- josh (C): expand C and intersect on C;
         let expand_opr4 = pb::EdgeExpand {
-            v_tag: Some(TAG_D.into()),
+            v_tag: Some(TAG_A.into()),
             direction: 0, // in
             params: Some(query_params(vec![], vec![], None)),
             is_edge: false,
-            alias: Some(TAG_A.into()),
+            alias: Some(TAG_D.into()),
         };
         // lop (B) <- josh (C): expand C and intersect on C;
         let expand_opr5 = pb::EdgeExpand {
@@ -898,13 +1116,14 @@ mod test {
             direction: 0, // in
             params: Some(query_params(vec![], vec![], None)),
             is_edge: false,
-            alias: Some(TAG_A.into()),
+            alias: Some(TAG_D.into()),
         };
 
 
 
         // unfold tag C
         let unfold_opr = pb::Unfold { tag: Some(TAG_D.into()), alias: Some(TAG_D.into()) };
+        let unfold_opr1 = pb::Unfold { tag: Some(TAG_C.into()), alias: Some(TAG_C.into()) };
 
         let conf = JobConf::new("expand_and_intersection_unfold_test");
         let mut result = pegasus::run(conf, || {
@@ -914,6 +1133,7 @@ mod test {
             let expand4 = expand_opr4.clone();
             let expand5 = expand_opr5.clone();
             let unfold = unfold_opr.clone();
+            let unfold1 = unfold_opr1.clone();
             |input, output| {
                 // source vertex: marko
                 let source_iter = source_gen_with_scan_opr(pb::Scan {
@@ -925,10 +1145,12 @@ mod test {
                 let mut stream = input.input_from(source_iter)?;
                 let flatmap_func1 = expand1.gen_flat_map().unwrap();
                 stream = stream.flat_map(move |input| flatmap_func1.exec(input))?;
-                let map_func2 = expand2.gen_flat_map().unwrap();
-                stream = stream.flat_map(move |input| map_func2.exec(input))?;
-                let map_func3 = expand3.gen_flat_map().unwrap();
-                stream = stream.flat_map(move |input| map_func3.exec(input))?;
+                let map_func2 = expand2.gen_filter_map().unwrap();
+                stream = stream.filter_map(move |input| map_func2.exec(input))?;
+                let map_func3 = expand3.gen_filter_map().unwrap();
+                stream = stream.filter_map(move |input| map_func3.exec(input))?;
+                let unfold_func1 = unfold1.gen_flat_map().unwrap();
+                stream = stream.flat_map(move |input| unfold_func1.exec(input))?;
                 let map_func4 = expand4.gen_filter_map().unwrap();
                 stream = stream.filter_map(move |input| map_func4.exec(input))?;
                 let map_func5 = expand5.gen_filter_map().unwrap();
@@ -964,7 +1186,7 @@ mod test {
 
         // marko (A) -> josh (C): expand C;
         let expand_opr2 = pb::EdgeExpand {
-            v_tag: Some(TAG_B.into()),
+            v_tag: Some(TAG_A.into()),
             direction: 0, // out
             params: Some(query_params(vec![], vec![], None)),
             is_edge: false,
@@ -973,19 +1195,19 @@ mod test {
 
         // marko (A) -> josh (C): expand C;
         let expand_opr3 = pb::EdgeExpand {
-            v_tag: Some(TAG_C.into()),
+            v_tag: Some(TAG_B.into()),
             direction: 0, // out
             params: Some(query_params(vec![], vec![], None)),
             is_edge: false,
-            alias: Some(TAG_D.into()),
+            alias: Some(TAG_C.into()),
         };
         // lop (B) <- josh (C): expand C and intersect on C;
         let expand_opr4 = pb::EdgeExpand {
-            v_tag: Some(TAG_D.into()),
+            v_tag: Some(TAG_A.into()),
             direction: 0, // in
             params: Some(query_params(vec![], vec![], None)),
             is_edge: false,
-            alias: Some(TAG_A.into()),
+            alias: Some(TAG_D.into()),
         };
         // lop (B) <- josh (C): expand C and intersect on C;
         let expand_opr5 = pb::EdgeExpand {
@@ -993,20 +1215,21 @@ mod test {
             direction: 0, // in
             params: Some(query_params(vec![], vec![], None)),
             is_edge: false,
-            alias: Some(TAG_A.into()),
+            alias: Some(TAG_D.into()),
         };
         // lop (B) <- josh (C): expand C and intersect on C;
         let expand_opr6 = pb::EdgeExpand {
-            v_tag: Some(TAG_D.into()),
+            v_tag: Some(TAG_B.into()),
             direction: 0, // in
             params: Some(query_params(vec![], vec![], None)),
             is_edge: false,
-            alias: Some(TAG_B.into()),
+            alias: Some(TAG_D.into()),
         };
 
 
 
         // unfold tag C
+        let unfold_opr1 = pb::Unfold { tag: Some(TAG_C.into()), alias: Some(TAG_C.into()) };
         let unfold_opr = pb::Unfold { tag: Some(TAG_D.into()), alias: Some(TAG_D.into()) };
 
         let conf = JobConf::new("expand_and_intersection_unfold_test");
@@ -1017,6 +1240,7 @@ mod test {
             let expand4 = expand_opr4.clone();
             let expand5 = expand_opr5.clone();
             let expand6 = expand_opr6.clone();
+            let unfold1 = unfold_opr1.clone();
             let unfold = unfold_opr.clone();
             |input, output| {
                 // source vertex: marko
@@ -1029,10 +1253,14 @@ mod test {
                 let mut stream = input.input_from(source_iter)?;
                 let flatmap_func1 = expand1.gen_flat_map().unwrap();
                 stream = stream.flat_map(move |input| flatmap_func1.exec(input))?;
-                let map_func2 = expand2.gen_flat_map().unwrap();
-                stream = stream.flat_map(move |input| map_func2.exec(input))?;
+                let map_func2 = expand2.gen_filter_map().unwrap();
+                stream = stream.filter_map(move |input| map_func2.exec(input))?;
                 let map_func3 = expand3.gen_filter_map().unwrap();
                 stream = stream.filter_map(move |input| map_func3.exec(input))?;
+
+                let unfold_func1 = unfold1.gen_flat_map().unwrap();
+                stream = stream.flat_map(move |input| unfold_func1.exec(input))?;
+
                 let map_func4 = expand4.gen_filter_map().unwrap();
                 stream = stream.filter_map(move |input| map_func4.exec(input))?;
                 let map_func5 = expand5.gen_filter_map().unwrap();
@@ -1170,23 +1398,23 @@ mod test {
             direction: 0, // out
             params: Some(query_params(vec![], vec![], None)),
             is_edge: false,
-            alias: Some(TAG_C.into()),
+            alias: Some(TAG_B.into()),
         };
         let expand_opr2 = pb::EdgeExpand {
             v_tag: Some(TAG_A.into()),
             direction: 0, // out
             params: Some(query_params(vec![], vec![], None)),
             is_edge: false,
-            alias: Some(TAG_B.into()),
+            alias: Some(TAG_C.into()),
         };
 
         // marko (A) -> josh (C): expand C;
         let expand_opr3 = pb::EdgeExpand {
-            v_tag: Some(TAG_C.into()),
+            v_tag: Some(TAG_B.into()),
             direction: 1, // out
             params: Some(query_params(vec![], vec![], None)),
             is_edge: false,
-            alias: Some(TAG_B.into()),
+            alias: Some(TAG_C.into()),
         };
 
         // marko (A) -> josh (C): expand C;
@@ -1195,12 +1423,12 @@ mod test {
             direction: 0, // out
             params: Some(query_params(vec![], vec![], None)),
             is_edge: false,
-            alias: Some(TAG_D.into()),
+            alias: Some(TAG_F.into()),
         };
         // lop (B) <- josh (C): expand C and intersect on C;
         let expand_opr5 = pb::EdgeExpand {
             v_tag: Some(TAG_D.into()),
-            direction: 1, // in
+            direction: 0, // in
             params: Some(query_params(vec![], vec![], None)),
             is_edge: false,
             alias: Some(TAG_E.into()),
@@ -1208,7 +1436,7 @@ mod test {
 
         let expand_opr6 = pb::EdgeExpand {
             v_tag: Some(TAG_D.into()),
-            direction: 1, // out
+            direction: 0, // out
             params: Some(query_params(vec![], vec![], None)),
             is_edge: false,
             alias: Some(TAG_F.into()),
@@ -1224,6 +1452,7 @@ mod test {
 
 
         // unfold tag C
+        let unfold_opr1 = pb::Unfold { tag: Some(TAG_C.into()), alias: Some(TAG_C.into()) };
         let unfold_opr = pb::Unfold { tag: Some(TAG_F.into()), alias: Some(TAG_F.into()) };
 
         let conf = JobConf::new("expand_and_intersection_unfold_test");
@@ -1236,6 +1465,7 @@ mod test {
             let expand6 = expand_opr6.clone();
             let expand7 = expand_opr7.clone();
             let unfold = unfold_opr.clone();
+            let unfold1 = unfold_opr1.clone();
             |input, output| {
                 // source vertex: marko
                 let source_iter = source_gen_with_scan_opr(pb::Scan {
@@ -1251,14 +1481,17 @@ mod test {
                 stream = stream.filter_map(move |input| map_func2.exec(input))?;
                 let map_func3 = expand3.gen_filter_map().unwrap();
                 stream = stream.filter_map(move |input| map_func3.exec(input))?;
-                let map_func4 = expand4.gen_flat_map().unwrap();
-                stream = stream.flat_map(move |input| map_func4.exec(input))?;
+                let unfold_func1 = unfold1.gen_flat_map().unwrap();
+                stream = stream.flat_map(move |input| unfold_func1.exec(input))?;
+
                 let map_func5 = expand5.gen_flat_map().unwrap();
                 stream = stream.flat_map(move |input| map_func5.exec(input))?;
                 let map_func6 = expand6.gen_filter_map().unwrap();
                 stream = stream.filter_map(move |input| map_func6.exec(input))?;
                 let map_func7 = expand7.gen_filter_map().unwrap();
                 stream = stream.filter_map(move |input| map_func7.exec(input))?;
+                let map_func4 = expand4.gen_filter_map().unwrap();
+                stream = stream.filter_map(move |input| map_func4.exec(input))?;
                 let unfold_func = unfold.gen_flat_map().unwrap();
                 stream = stream.flat_map(move |input| unfold_func.exec(input))?;
                 stream.sink_into(output)
@@ -1331,11 +1564,11 @@ mod test {
         };
 
         let expand_opr7 = pb::EdgeExpand {
-            v_tag: Some(TAG_B.into()),
+            v_tag: Some(TAG_A.into()),
             direction: 0, // out
             params: Some(query_params(vec![], vec![], None)),
             is_edge: false,
-            alias: Some(TAG_D.into()),
+            alias: Some(TAG_E.into()),
         };
 
         let expand_opr8 = pb::EdgeExpand {
@@ -1347,6 +1580,30 @@ mod test {
         };
 
         let expand_opr9 = pb::EdgeExpand {
+            v_tag: Some(TAG_C.into()),
+            direction: 0, // out
+            params: Some(query_params(vec![], vec![], None)),
+            is_edge: false,
+            alias: Some(TAG_E.into()),
+        };
+
+        let expand_opr10 = pb::EdgeExpand {
+            v_tag: Some(TAG_D.into()),
+            direction: 0, // out
+            params: Some(query_params(vec![], vec![], None)),
+            is_edge: false,
+            alias: Some(TAG_E.into()),
+        };
+
+        let expand_opr11 = pb::EdgeExpand {
+            v_tag: Some(TAG_A.into()),
+            direction: 0, // out
+            params: Some(query_params(vec![], vec![], None)),
+            is_edge: false,
+            alias: Some(TAG_F.into()),
+        };
+
+        let expand_opr12 = pb::EdgeExpand {
             v_tag: Some(TAG_B.into()),
             direction: 0, // out
             params: Some(query_params(vec![], vec![], None)),
@@ -1354,36 +1611,12 @@ mod test {
             alias: Some(TAG_F.into()),
         };
 
-        let expand_opr10 = pb::EdgeExpand {
-            v_tag: Some(TAG_C.into()),
-            direction: 0, // out
-            params: Some(query_params(vec![], vec![], None)),
-            is_edge: false,
-            alias: Some(TAG_D.into()),
-        };
-
-        let expand_opr11 = pb::EdgeExpand {
-            v_tag: Some(TAG_C.into()),
-            direction: 0, // out
-            params: Some(query_params(vec![], vec![], None)),
-            is_edge: false,
-            alias: Some(TAG_E.into()),
-        };
-
-        let expand_opr12 = pb::EdgeExpand {
+        let expand_opr13 = pb::EdgeExpand {
             v_tag: Some(TAG_C.into()),
             direction: 0, // out
             params: Some(query_params(vec![], vec![], None)),
             is_edge: false,
             alias: Some(TAG_F.into()),
-        };
-
-        let expand_opr13 = pb::EdgeExpand {
-            v_tag: Some(TAG_D.into()),
-            direction: 0, // out
-            params: Some(query_params(vec![], vec![], None)),
-            is_edge: false,
-            alias: Some(TAG_E.into()),
         };
 
         let expand_opr14 = pb::EdgeExpand {
@@ -1404,7 +1637,13 @@ mod test {
 
 
         // unfold tag C
-        let unfold_opr = pb::Unfold { tag: Some(TAG_F.into()), alias: Some(TAG_F.into()) };
+        let unfold_opr = pb::Unfold { tag: Some(TAG_C.into()), alias: Some(TAG_C.into()) };
+
+        let unfold_opr1 = pb::Unfold { tag: Some(TAG_D.into()), alias: Some(TAG_D.into()) };
+
+        let unfold_opr2 = pb::Unfold { tag: Some(TAG_E.into()), alias: Some(TAG_E.into()) };
+
+        let unfold_opr3 = pb::Unfold { tag: Some(TAG_F.into()), alias: Some(TAG_F.into()) };
 
         let conf = JobConf::new("expand_and_intersection_unfold_test");
         let mut result = pegasus::run(conf, || {
@@ -1424,6 +1663,9 @@ mod test {
             let expand14 = expand_opr14.clone();
             let expand15 = expand_opr15.clone();
             let unfold = unfold_opr.clone();
+            let unfold1 = unfold_opr1.clone();
+            let unfold2 = unfold_opr2.clone();
+            let unfold3 = unfold_opr3.clone();
             |input, output| {
                 // source vertex: marko
                 let source_iter = source_gen_with_scan_opr(pb::Scan {
@@ -1435,36 +1677,45 @@ mod test {
                 let mut stream = input.input_from(source_iter)?;
                 let flatmap_func1 = expand1.gen_flat_map().unwrap();
                 stream = stream.flat_map(move |input| flatmap_func1.exec(input))?;
-                let map_func2 = expand2.gen_flat_map().unwrap();
-                stream = stream.flat_map(move |input| map_func2.exec(input))?;
+                let map_func2 = expand2.gen_filter_map().unwrap();
+                stream = stream.filter_map(move |input| map_func2.exec(input))?;
                 let map_func3 = expand3.gen_filter_map().unwrap();
                 stream = stream.filter_map(move |input| map_func3.exec(input))?;
-                let map_func4 = expand4.gen_flat_map().unwrap();
-                stream = stream.flat_map(move |input| map_func4.exec(input))?;
+
+                let unfold_func = unfold.gen_flat_map().unwrap();
+                stream = stream.flat_map(move |input| unfold_func.exec(input))?;
+                let map_func4 = expand4.gen_filter_map().unwrap();
+                stream = stream.filter_map(move |input| map_func4.exec(input))?;
                 let map_func5 = expand5.gen_filter_map().unwrap();
                 stream = stream.filter_map(move |input| map_func5.exec(input))?;
                 let map_func6 = expand6.gen_filter_map().unwrap();
                 stream = stream.filter_map(move |input| map_func6.exec(input))?;
-                // let map_func7 = expand7.gen_filter_map().unwrap();
-                // stream = stream.filter_map(move |input| map_func7.exec(input))?;
-                // let map_func8 = expand8.gen_filter_map().unwrap();
-                // stream = stream.filter_map(move |input| map_func8.exec(input))?;
-                // let map_func9 = expand9.gen_filter_map().unwrap();
-                // stream = stream.filter_map(move |input| map_func9.exec(input))?;
-                // let map_func10 = expand10.gen_filter_map().unwrap();
-                // stream = stream.filter_map(move |input| map_func10.exec(input))?;
-                // let map_func11 = expand11.gen_filter_map().unwrap();
-                // stream = stream.filter_map(move |input| map_func11.exec(input))?;
-                // let map_func12 = expand12.gen_filter_map().unwrap();
-                // stream = stream.filter_map(move |input| map_func12.exec(input))?;
-                // let map_func13 = expand13.gen_filter_map().unwrap();
-                // stream = stream.filter_map(move |input| map_func13.exec(input))?;
-                // let map_func14 = expand14.gen_filter_map().unwrap();
-                // stream = stream.filter_map(move |input| map_func14.exec(input))?;
-                // let map_func15 = expand15.gen_filter_map().unwrap();
-                // stream = stream.filter_map(move |input| map_func15.exec(input))?;
-                let unfold_func = unfold.gen_flat_map().unwrap();
-                // stream = stream.flat_map(move |input| unfold_func.exec(input))?;
+
+                let unfold_func = unfold1.gen_flat_map().unwrap();
+                stream = stream.flat_map(move |input| unfold_func.exec(input))?;
+                let map_func7 = expand7.gen_filter_map().unwrap();
+                stream = stream.filter_map(move |input| map_func7.exec(input))?;
+                let map_func8 = expand8.gen_filter_map().unwrap();
+                stream = stream.filter_map(move |input| map_func8.exec(input))?;
+                let map_func9 = expand9.gen_filter_map().unwrap();
+                stream = stream.filter_map(move |input| map_func9.exec(input))?;
+                let map_func10 = expand10.gen_filter_map().unwrap();
+                stream = stream.filter_map(move |input| map_func10.exec(input))?;
+
+                let unfold_func = unfold2.gen_flat_map().unwrap();
+                stream = stream.flat_map(move |input| unfold_func.exec(input))?;
+                let map_func11 = expand11.gen_filter_map().unwrap();
+                stream = stream.filter_map(move |input| map_func11.exec(input))?;
+                let map_func12 = expand12.gen_filter_map().unwrap();
+                stream = stream.filter_map(move |input| map_func12.exec(input))?;
+                let map_func13 = expand13.gen_filter_map().unwrap();
+                stream = stream.filter_map(move |input| map_func13.exec(input))?;
+                let map_func14 = expand14.gen_filter_map().unwrap();
+                stream = stream.filter_map(move |input| map_func14.exec(input))?;
+                let map_func15 = expand15.gen_filter_map().unwrap();
+                stream = stream.filter_map(move |input| map_func15.exec(input))?;
+                let unfold_func = unfold3.gen_flat_map().unwrap();
+                stream = stream.flat_map(move |input| unfold_func.exec(input))?;
                 stream.sink_into(output)
             }
         })
@@ -1478,7 +1729,7 @@ mod test {
                 result_ids.push(element.id() as usize);
             }
         }
-        println!("2 tri {}",result_ids.len())
+        println!("clique {}",result_ids.len())
     }
 
 
@@ -1488,6 +1739,139 @@ mod test {
             // expand_and_intersection_expand_test();
             // expand_and_intersection_unfold_test();
             // expand_and_intersection_unfold_test_square();
+            // expand_and_intersection_unfold_test_square_1();
+            // expand_and_intersection_unfold_test_square_2();
+            expand_and_intersection_bi11();
+        }
+        // expand_and_intersection_unfold_test_2tri();
+        // expand_and_intersection_unfold_test_house();
+        // expand_and_intersection_unfold_test_clicue();
+    }
+
+    #[test]
+    fn lot_of_test9() {
+        for i in 0..1{
+            // expand_and_intersection_expand_test();
+            // expand_and_intersection_unfold_test();
+            // expand_and_intersection_unfold_test_square();
+            // expand_and_intersection_unfold_test_square_1();
+            // expand_and_intersection_unfold_test_square_2();
+
+            expand_and_intersection_bi11();
+        }
+        // expand_and_intersection_unfold_test_2tri();
+        // expand_and_intersection_unfold_test_house();
+        // expand_and_intersection_unfold_test_clicue();
+    }
+
+    #[test]
+    fn lot_of_test8() {
+        for i in 0..1{
+            // expand_and_intersection_expand_test();
+            // expand_and_intersection_unfold_test();
+            // expand_and_intersection_unfold_test_square();
+            // expand_and_intersection_unfold_test_square_1();
+            // expand_and_intersection_unfold_test_square_2();
+
+            expand_and_intersection_bi11();
+        }
+        // expand_and_intersection_unfold_test_2tri();
+        // expand_and_intersection_unfold_test_house();
+        // expand_and_intersection_unfold_test_clicue();
+    }
+
+    #[test]
+    fn lot_of_test7() {
+        for i in 0..1{
+            expand_and_intersection_expand_test();
+            expand_and_intersection_unfold_test();
+            expand_and_intersection_unfold_test_square();
+            expand_and_intersection_unfold_test_square_1();
+            expand_and_intersection_unfold_test_square_2();
+
+        }
+        // expand_and_intersection_unfold_test_2tri();
+        // expand_and_intersection_unfold_test_house();
+        // expand_and_intersection_unfold_test_clicue();
+    }
+
+    #[test]
+    fn lot_of_test6() {
+        for i in 0..1{
+            expand_and_intersection_expand_test();
+            expand_and_intersection_unfold_test();
+            expand_and_intersection_unfold_test_square();
+            expand_and_intersection_unfold_test_square_1();
+            expand_and_intersection_unfold_test_square_2();
+
+        }
+        // expand_and_intersection_unfold_test_2tri();
+        // expand_and_intersection_unfold_test_house();
+        // expand_and_intersection_unfold_test_clicue();
+    }
+
+    #[test]
+    fn lot_of_test5() {
+        for i in 0..1{
+            // expand_and_intersection_expand_test();
+            // expand_and_intersection_unfold_test();
+            expand_and_intersection_unfold_test_square();
+            // expand_and_intersection_unfold_test_square_1();
+            // expand_and_intersection_unfold_test_square_2();
+
+        }
+        // expand_and_intersection_unfold_test_2tri();
+        // expand_and_intersection_unfold_test_house();
+    }
+
+    #[test]
+    fn lot_of_test4() {
+        for i in 0..1{
+            // expand_and_intersection_expand_test();
+            // expand_and_intersection_unfold_test();
+            expand_and_intersection_unfold_test_square();
+            // expand_and_intersection_unfold_test_square_1();
+            // expand_and_intersection_unfold_test_square_2();
+
+        }
+        // expand_and_intersection_unfold_test_2tri();
+        // expand_and_intersection_unfold_test_house();
+    }
+
+    #[test]
+    fn lot_of_test3() {
+        for i in 0..1{
+            expand_and_intersection_expand_test();
+            expand_and_intersection_unfold_test();
+            // expand_and_intersection_unfold_test_square();
+            // expand_and_intersection_unfold_test_square_1();
+            expand_and_intersection_unfold_test_square_2();
+
+        }
+        // expand_and_intersection_unfold_test_2tri();
+        // expand_and_intersection_unfold_test_house();
+    }
+
+    #[test]
+    fn lot_of_test2() {
+        for i in 0..1{
+            expand_and_intersection_expand_test();
+            expand_and_intersection_unfold_test();
+            expand_and_intersection_unfold_test_square();
+            expand_and_intersection_unfold_test_square_1();
+            expand_and_intersection_unfold_test_square_2();
+
+        }
+        // expand_and_intersection_unfold_test_2tri();
+        // expand_and_intersection_unfold_test_house();
+    }
+
+    #[test]
+    fn lot_of_test1() {
+        for i in 0..1{
+            expand_and_intersection_expand_test();
+            expand_and_intersection_unfold_test();
+            expand_and_intersection_unfold_test_square();
             expand_and_intersection_unfold_test_square_1();
             expand_and_intersection_unfold_test_square_2();
 
